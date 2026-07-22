@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { FileText, Receipt, FilePlus, Trash2, FileEdit } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { getSavedQuotations, deleteQuotation, type SavedQuotation, getSavedInvoices, deleteInvoice, type SavedInvoice } from "../utils/storage";
 
 export default function HomePage() {
@@ -178,8 +178,8 @@ function MenuCard({
   description: string;
 }) {
   return (
-    <a
-      href={href}
+    <Link
+      to={href}
       className="group relative flex flex-col gap-4 rounded-xl border border-gray-200 bg-[#f5f5f5] p-6
                  transition-all duration-200 ease-out
                  hover:border-black hover:shadow-[0_0_0_1px_black,0_0_24px_rgba(0,0,0,0.08)]
@@ -199,6 +199,6 @@ function MenuCard({
         <h2 className="font-display text-lg font-medium">{title}</h2>
         <p className="mt-1 text-sm text-gray-500">{description}</p>
       </div>
-    </a>
+    </Link>
   );
 }
