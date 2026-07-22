@@ -10,7 +10,7 @@ const companySettings = {
   address: "M.P.C.S Lane, Kopay North, Kopay",
   phone: ["021 223 1455", "077 758 8128"],
   salutation: "Sir,",
-  closing: ["Thanking you.", "Yours faithfully,"],
+  closing: ["Thanking you.", "Yours faithfully,in"],
   signatory: "K. Arulalagan MIET-UK",
 };
 
@@ -69,8 +69,8 @@ function qtyRateNum(v: string): number {
 
 const pdfStyles = StyleSheet.create({
   page: { padding: "40 50 40", fontSize: 10, color: "#000", fontFamily: "Helvetica" },
-  header: { marginBottom: 28, alignItems: "center" as const },
-  headerTitle: { fontSize: 18, fontWeight: 700 },
+  header: { marginBottom: 16, alignItems: "center" as const },
+  headerTitle: { fontSize: 14, fontWeight: 700 },
   footer: { alignItems: "center" as const },
   footerText: { fontSize: 8, color: "#000" },
   recipientBlock: { marginBottom: 8 },
@@ -79,9 +79,9 @@ const pdfStyles = StyleSheet.create({
   salutation: { fontSize: 10, marginBottom: 8 },
   subjectBlock: { marginVertical: 8 },
   subjectLine: { fontSize: 12, fontWeight: 700, textAlign: "center" as const, lineHeight: 1.3 },
-  tableContainer: { marginTop: 4, borderWidth: 1, borderColor: "#000" },
+  tableContainer: { marginTop: 4, borderWidth: 1.5, borderColor: "#000" },
   tableHeader: { flexDirection: "row" as const },
-  tableHeaderCell: { fontSize: 9, fontWeight: 700, paddingVertical: 3, paddingHorizontal: 4, textAlign: "center" as const, borderRightWidth: 1, borderRightColor: "#000", borderBottomWidth: 1, borderBottomColor: "#000" },
+  tableHeaderCell: { fontSize: 9, fontWeight: 700, paddingVertical: 3, paddingHorizontal: 4, textAlign: "center" as const, borderRightWidth: 1, borderRightColor: "#000", borderBottomWidth: 1.5, borderBottomColor: "#000" },
   tableRow: { flexDirection: "row" as const },
   tableCell: { fontSize: 9, paddingVertical: 4, paddingHorizontal: 4, borderRightWidth: 1, borderRightColor: "#000", borderBottomWidth: 1, borderBottomColor: "#000" },
   colNo: { width: "8%", textAlign: "center" as const },
@@ -146,7 +146,7 @@ function QuotationPDF({ data }: { data: QuotationFormData }) {
             </View>
           ))}
 
-          <View style={[pdfStyles.totalRow, { borderBottomWidth: 1, borderBottomColor: "#000" }]}>
+          <View style={[pdfStyles.totalRow, { borderBottomWidth: 1.5, borderBottomColor: "#000" }]}>
             <Text style={pdfStyles.totalLabel}>TOTAL</Text>
             <Text style={pdfStyles.totalValue}>{fmtNum(subtotal)}</Text>
           </View>
@@ -337,7 +337,7 @@ export default function NewQuotationPage() {
           <ArrowLeft className="h-4 w-4" />
           Back
         </button>
-        <h1 className="text-3xl tracking-wide text-black">{companySettings.name}</h1>
+        <h1 className="text-2xl tracking-wide text-black">{companySettings.name}</h1>
       </header>
 
       <main className="flex flex-1 flex-col items-center justify-center px-6 pt-12 pb-16">
@@ -599,7 +599,7 @@ function ItemsTable({
       <table className="w-full border-collapse border border-black text-sm" style={{ tableLayout: "fixed", fontFamily: "Helvetica, Arial, sans-serif" }}>
         <thead>
           <tr className="border border-black">
-            <th className="w-[7%] border border-black px-2 py-2.5 text-center text-xs whitespace-nowrap">Item</th>
+            <th className="w-[7%] border border-black px-2 py-2.5 text-center text-xs whitespace-nowrap">ITEM</th>
             <th className="w-[45%] border border-black px-2 py-2.5 text-center text-xs whitespace-nowrap">Description</th>
             <th className="w-[10%] border border-black px-2 py-2.5 text-center text-xs whitespace-nowrap">Unit</th>
             <th className="w-[9%] border border-black px-2 py-2.5 text-center text-xs whitespace-nowrap">Qty</th>
