@@ -7,7 +7,8 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [savedQ, setSavedQ] = useState<SavedQuotation[]>([]);
   const [savedI, setSavedI] = useState<SavedInvoice[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingQ, setLoadingQ] = useState(true);
+  const [loadingI, setLoadingI] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export default function HomePage() {
       } catch {
         if (!cancelled) setError("Failed to load saved items.");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setLoadingQ(false); setLoadingI(false); }
       }
     }
     load();
@@ -110,7 +111,7 @@ export default function HomePage() {
           {error && (
             <p className="mb-3 text-sm text-red-600">{error}</p>
           )}
-          {loading ? (
+          {loadingQ ? (
             <p className="text-sm text-gray-400">Loading...</p>
           ) : savedQ.length === 0 ? (
             <p className="text-sm text-gray-400">No saved quotations yet.</p>
@@ -158,7 +159,7 @@ export default function HomePage() {
           <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-500">
             Saved Invoices
           </h2>
-          {loading ? (
+          {loadingI ? (
             <p className="text-sm text-gray-400">Loading...</p>
           ) : savedI.length === 0 ? (
             <p className="text-sm text-gray-400">No saved invoices yet.</p>

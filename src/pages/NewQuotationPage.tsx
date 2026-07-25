@@ -236,7 +236,7 @@ export default function NewQuotationPage() {
       if (d.discount !== undefined) { setDiscount(d.discount); setShowDiscount(true); }
       if (d.notes !== undefined) { setNotes(d.notes); if (d.notes.some((n) => n.trim())) setShowNote(true); }
     }
-  }, []);
+  }, [location.state]);
 
   function updateItem(id: number, field: keyof ItemRow, value: string) {
     setItems((prev) =>

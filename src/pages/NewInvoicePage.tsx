@@ -286,7 +286,7 @@ export default function NewInvoicePage() {
       setPaymentsCredits(d.paymentsCredits);
       if (d.notes !== undefined) { setNotes(d.notes); if (d.notes.some((n) => n.trim())) setShowNote(true); }
     }
-  }, []);
+  }, [location.state]);
 
   function updateItem(id: number, field: keyof InvoiceItemRow, value: string) {
     setItems((prev) =>

@@ -79,8 +79,8 @@ export default function NewDocumentPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {}}
-                className="border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
+                disabled
+                className="cursor-not-allowed border border-gray-300 px-6 py-3 text-sm font-medium text-gray-400"
               >
                 New Document
               </button>
