@@ -79,7 +79,7 @@ export default function HomePage() {
               {savedQ.map((q) => (
                 <div
                   key={q.id}
-                  className="flex items-center justify-between border border-gray-200 px-4 py-3 text-sm"
+                  className="flex flex-col gap-2 border border-gray-200 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-black">{q.name}</p>
@@ -94,17 +94,17 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() => handleLoadQuotation(q)}
-                      className="inline-flex items-center gap-1 border border-black px-3 py-1.5 text-xs text-black transition-colors hover:bg-gray-100"
+                      className="inline-flex items-center justify-center gap-1 border border-black px-4 py-2 text-xs text-black transition-colors hover:bg-gray-100"
                     >
-                      <FileEdit className="h-3 w-3" />
+                      <FileEdit className="h-3.5 w-3.5" />
                       Load
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteQuotation(q.id)}
-                      className="inline-flex items-center gap-1 border border-red-300 px-3 py-1.5 text-xs text-red-600 transition-colors hover:bg-red-50"
+                      className="inline-flex items-center justify-center gap-1 border border-red-300 px-4 py-2 text-xs text-red-600 transition-colors hover:bg-red-50"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                       Delete
                     </button>
                   </div>
@@ -123,7 +123,7 @@ export default function HomePage() {
               {savedI.map((inv) => (
                 <div
                   key={inv.id}
-                  className="flex items-center justify-between border border-gray-200 px-4 py-3 text-sm"
+                  className="flex flex-col gap-2 border border-gray-200 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-black">{inv.name}</p>
@@ -138,17 +138,17 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() => handleLoadInvoice(inv)}
-                      className="inline-flex items-center gap-1 border border-black px-3 py-1.5 text-xs text-black transition-colors hover:bg-gray-100"
+                      className="inline-flex items-center justify-center gap-1 border border-black px-4 py-2 text-xs text-black transition-colors hover:bg-gray-100"
                     >
-                      <FileEdit className="h-3 w-3" />
+                      <FileEdit className="h-3.5 w-3.5" />
                       Load
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteInvoice(inv.id)}
-                      className="inline-flex items-center gap-1 border border-red-300 px-3 py-1.5 text-xs text-red-600 transition-colors hover:bg-red-50"
+                      className="inline-flex items-center justify-center gap-1 border border-red-300 px-4 py-2 text-xs text-red-600 transition-colors hover:bg-red-50"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                       Delete
                     </button>
                   </div>

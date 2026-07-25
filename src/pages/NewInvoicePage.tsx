@@ -403,30 +403,38 @@ export default function NewInvoicePage() {
             onLine3Change={setRecipient3}
           />
 
-          <div className="flex items-center gap-2 text-xs text-black">
-            <span className="whitespace-nowrap">Date:</span>
-            <input
-              type="text"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="flex-1 border-0 border-b border-gray-300 px-0 py-1.5 text-xs outline-none focus:border-black"
-            />
-            <span className="ml-auto whitespace-nowrap font-medium">Invoice No.:</span>
-            <input
-              type="text"
-              placeholder="INV-001"
-              value={invoiceNo}
-              onChange={(e) => setInvoiceNo(e.target.value)}
-              className="w-40 border-0 border-b border-gray-300 px-0 py-1.5 text-xs text-right outline-none focus:border-black"
-            />
+          <div className="flex flex-col gap-2 text-xs text-black sm:flex-row sm:items-center sm:gap-2">
+            <div className="flex items-center gap-2">
+              <span className="whitespace-nowrap">Date:</span>
+              <input
+                type="text"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="flex-1 border-0 border-b border-gray-300 px-0 py-1.5 text-xs outline-none focus:border-black"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="whitespace-nowrap font-medium">Invoice No.:</span>
+              <input
+                type="text"
+                placeholder="INV-001"
+                value={invoiceNo}
+                onChange={(e) => setInvoiceNo(e.target.value)}
+                className="flex-1 border-0 border-b border-gray-300 px-0 py-1.5 text-xs text-right outline-none focus:border-black"
+              />
+            </div>
           </div>
 
-          <InvoiceItemsTable
-            items={items}
-            onUpdate={updateItem}
-            onRemove={removeItem}
-            onAdd={addItem}
-          />
+          <div className="overflow-x-auto -mx-6 px-6">
+            <div className="min-w-[640px]">
+              <InvoiceItemsTable
+                items={items}
+                onUpdate={updateItem}
+                onRemove={removeItem}
+                onAdd={addItem}
+              />
+            </div>
+          </div>
 
           <AmountInWords total={total} />
 
@@ -481,12 +489,12 @@ export default function NewInvoicePage() {
             </div>
           )}
 
-          <div className="flex items-center gap-4 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:gap-4">
             <button
               type="button"
               onClick={() => setShowPreview(true)}
               disabled={!canGenerate}
-              className={`inline-flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
+              className={`inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
                 canGenerate
                   ? "bg-black text-white hover:bg-gray-800"
                   : "cursor-not-allowed bg-gray-200 text-gray-400"
@@ -499,7 +507,7 @@ export default function NewInvoicePage() {
             <button
               type="button"
               onClick={handleSave}
-              className="inline-flex items-center gap-2 border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
+              className="inline-flex items-center justify-center gap-2 border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
             >
               <Save className="h-4 w-4" />
               {savedId ? "Update Saved" : "Save Invoice"}
@@ -508,7 +516,7 @@ export default function NewInvoicePage() {
             <button
               type="button"
               onClick={resetForm}
-              className="border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
+              className="inline-flex items-center justify-center border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
             >
               New Invoice
             </button>
@@ -736,11 +744,11 @@ function FinancialSummary({
 }) {
   return (
     <div className="flex flex-col items-end gap-1 pt-2">
-      <div className="flex w-full max-w-xs items-center justify-between text-sm">
+      <div className="flex w-full sm:max-w-xs items-center justify-between text-sm">
         <span>Subtotal</span>
         <span>{fmtNum(subtotal)}</span>
       </div>
-      <div className="flex w-full max-w-xs items-center justify-between text-sm">
+      <div className="flex w-full sm:max-w-xs items-center justify-between text-sm">
         <span className="flex items-center gap-1">
           Sales Tax (
           <input
@@ -755,11 +763,11 @@ function FinancialSummary({
         </span>
         <span>{taxPercent > 0 ? fmtNum(tax) : "-"}</span>
       </div>
-      <div className="flex w-full max-w-xs items-center justify-between text-sm font-bold">
+      <div className="flex w-full sm:max-w-xs items-center justify-between text-sm font-bold">
         <span>Total</span>
         <span>{fmtNum(total)}</span>
       </div>
-      <div className="flex w-full max-w-xs items-center justify-between text-sm">
+      <div className="flex w-full sm:max-w-xs items-center justify-between text-sm">
         <span className="flex items-center gap-1">
           Payments/Credits
         </span>
@@ -772,7 +780,7 @@ function FinancialSummary({
           className="w-24 border-0 border-b border-gray-300 px-0 py-0.5 text-right text-xs outline-none focus:border-black"
         />
       </div>
-      <div className="flex w-full max-w-xs items-center justify-between text-sm font-bold">
+      <div className="flex w-full sm:max-w-xs items-center justify-between text-sm font-bold">
         <span>Balance Due</span>
         <span>{fmtNum(total - paymentsCredits)}</span>
       </div>

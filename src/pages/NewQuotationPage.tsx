@@ -367,9 +367,13 @@ export default function NewQuotationPage() {
         </div>
         <SubjectField value={subject} onChange={setSubject} />
 
-        <ItemsTable items={items} onUpdate={updateItem} onRemove={removeItem} onAdd={addItem} total={subtotal} />
+        <div className="overflow-x-auto -mx-6 px-6">
+          <div className="min-w-[640px]">
+            <ItemsTable items={items} onUpdate={updateItem} onRemove={removeItem} onAdd={addItem} total={subtotal} />
+          </div>
+        </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -388,12 +392,12 @@ export default function NewQuotationPage() {
           </div>
 
           {showDiscount && (
-            <div className="flex flex-col items-end gap-1 text-sm">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end gap-1 text-sm w-full sm:w-auto">
+              <div className="flex items-center justify-between w-full sm:w-auto sm:gap-4">
                 <span>Subtotal</span>
                 <span className="w-24 text-right tabular-nums">Rs {fmtNum(subtotal)}</span>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between w-full sm:w-auto sm:gap-4">
                 <span className="flex items-center gap-1">Discount Rs</span>
                 <input
                   type="number"
@@ -404,7 +408,7 @@ export default function NewQuotationPage() {
                   className="w-24 border-0 border-b border-gray-300 px-0 py-0.5 text-right text-sm outline-none focus:border-black tabular-nums"
                 />
               </div>
-              <div className="flex items-center gap-4 font-bold">
+              <div className="flex items-center justify-between w-full sm:w-auto sm:gap-4 font-bold">
                 <span>Grand Total</span>
                 <span className="w-24 text-right tabular-nums">Rs {fmtNum(grandTotal)}</span>
               </div>
@@ -445,12 +449,12 @@ export default function NewQuotationPage() {
           </div>
         )}
 
-        <div className="flex items-center gap-4 pt-4">
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:gap-4">
           <button
             type="button"
             onClick={() => setShowPreview(true)}
             disabled={!canGenerate}
-            className={`inline-flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
+            className={`inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
               canGenerate
                 ? "bg-black text-white hover:bg-gray-800"
                 : "cursor-not-allowed bg-gray-200 text-gray-400"
@@ -463,7 +467,7 @@ export default function NewQuotationPage() {
           <button
             type="button"
             onClick={handleSave}
-            className="inline-flex items-center gap-2 border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
+            className="inline-flex items-center justify-center gap-2 border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
           >
             <Save className="h-4 w-4" />
             {savedId ? "Update Saved" : "Save Quotation"}
@@ -472,7 +476,7 @@ export default function NewQuotationPage() {
           <button
             type="button"
             onClick={resetForm}
-            className="border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
+            className="inline-flex items-center justify-center border border-black px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-gray-100"
           >
             New Quotation
           </button>
