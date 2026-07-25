@@ -8,15 +8,21 @@ export default function HomePage() {
   const [savedQ, setSavedQ] = useState<SavedQuotation[]>([]);
   const [savedI, setSavedI] = useState<SavedInvoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [q, i] = await Promise.all([getSavedQuotations(), getSavedInvoices()]);
-      if (!cancelled) {
-        setSavedQ(q);
-        setSavedI(i);
-        setLoading(false);
+      try {
+        const [q, i] = await Promise.all([getSavedQuotations(), getSavedInvoices()]);
+        if (!cancelled) {
+          setSavedQ(q);
+          setSavedI(i);
+        }
+      } catch {
+        if (!cancelled) setError("Failed to load saved items.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     load();
@@ -24,9 +30,14 @@ export default function HomePage() {
   }, []);
 
   async function refresh() {
-    const [q, i] = await Promise.all([getSavedQuotations(), getSavedInvoices()]);
-    setSavedQ(q);
-    setSavedI(i);
+    try {
+      const [q, i] = await Promise.all([getSavedQuotations(), getSavedInvoices()]);
+      setSavedQ(q);
+      setSavedI(i);
+      setError("");
+    } catch {
+      setError("Failed to refresh.");
+    }
   }
 
   function handleLoadQuotation(q: SavedQuotation) {
@@ -34,8 +45,12 @@ export default function HomePage() {
   }
 
   async function handleDeleteQuotation(id: string) {
-    await deleteQuotation(id);
-    refresh();
+    try {
+      await deleteQuotation(id);
+      refresh();
+    } catch {
+      setError("Failed to delete quotation.");
+    }
   }
 
   function handleLoadInvoice(inv: SavedInvoice) {
@@ -43,8 +58,12 @@ export default function HomePage() {
   }
 
   async function handleDeleteInvoice(id: string) {
-    await deleteInvoice(id);
-    refresh();
+    try {
+      await deleteInvoice(id);
+      refresh();
+    } catch {
+      setError("Failed to delete invoice.");
+    }
   }
 
   return (
@@ -88,6 +107,9 @@ export default function HomePage() {
           <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-500">
             Saved Quotations
           </h2>
+          {error && (
+            <p className="mb-3 text-sm text-red-600">{error}</p>
+          )}
           {loading ? (
             <p className="text-sm text-gray-400">Loading...</p>
           ) : savedQ.length === 0 ? (

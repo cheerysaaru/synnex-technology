@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-const useCloud = !!(supabaseUrl && supabaseKey);
+const useCloud = !!(supabaseUrl && supabaseKey && supabase);
 
 const QUOTATION_KEY = "synnex_saved_quotations";
 const INVOICE_KEY = "synnex_saved_invoices";
@@ -63,7 +63,7 @@ function writeLocal(key: string, list: unknown[]) {
 
 export async function getSavedQuotations(): Promise<SavedQuotation[]> {
   if (useCloud) {
-    const { data, error } = await supabase
+    const { data, error } = await supabase!
       .from("items")
       .select("*")
       .eq("type", "quotation")
@@ -81,7 +81,7 @@ export async function getSavedQuotations(): Promise<SavedQuotation[]> {
 
 export async function saveQuotation(q: SavedQuotation): Promise<void> {
   if (useCloud) {
-    const { error } = await supabase.from("items").insert({
+    const { error } = await supabase!.from("items").upsert({
       id: q.id,
       type: "quotation",
       name: q.name,
@@ -100,7 +100,7 @@ export async function saveQuotation(q: SavedQuotation): Promise<void> {
 
 export async function deleteQuotation(id: string): Promise<void> {
   if (useCloud) {
-    const { error } = await supabase.from("items").delete().eq("id", id);
+    const { error } = await supabase!.from("items").delete().eq("id", id);
     if (error) throw error;
     return;
   }
@@ -110,7 +110,7 @@ export async function deleteQuotation(id: string): Promise<void> {
 
 export async function getSavedInvoices(): Promise<SavedInvoice[]> {
   if (useCloud) {
-    const { data, error } = await supabase
+    const { data, error } = await supabase!
       .from("items")
       .select("*")
       .eq("type", "invoice")
@@ -128,7 +128,7 @@ export async function getSavedInvoices(): Promise<SavedInvoice[]> {
 
 export async function saveInvoice(inv: SavedInvoice): Promise<void> {
   if (useCloud) {
-    const { error } = await supabase.from("items").insert({
+    const { error } = await supabase!.from("items").upsert({
       id: inv.id,
       type: "invoice",
       name: inv.name,
@@ -147,7 +147,7 @@ export async function saveInvoice(inv: SavedInvoice): Promise<void> {
 
 export async function deleteInvoice(id: string): Promise<void> {
   if (useCloud) {
-    const { error } = await supabase.from("items").delete().eq("id", id);
+    const { error } = await supabase!.from("items").delete().eq("id", id);
     if (error) throw error;
     return;
   }

@@ -10,7 +10,7 @@ const companySettings = {
   address: "M.P.C.S Lane, Kopay North, Kopay",
   phone: ["021 223 1455", "077 758 8128"],
   salutation: "Sir,",
-  closing: ["Thanking you.", "Yours faithfully,in"],
+  closing: ["Thanking you.", "Yours faithfully,"],
   signatory: "K. Arulalagan MIET-UK",
 };
 
@@ -285,16 +285,20 @@ export default function NewQuotationPage() {
     });
 
   async function handleSave() {
-    const id = savedId || crypto.randomUUID();
-    await saveQuotation({
-      id,
-      name: recipient1 || "Untitled",
-      savedAt: new Date().toISOString(),
-      data: { recipient1, recipient2, recipient3, date, subject, salutation, items, discount, showDiscount, notes },
-    });
-    setSavedId(id);
-    setShowSaved(true);
-    setTimeout(() => setShowSaved(false), 2000);
+    try {
+      const id = savedId || crypto.randomUUID();
+      await saveQuotation({
+        id,
+        name: recipient1 || "Untitled",
+        savedAt: new Date().toISOString(),
+        data: { recipient1, recipient2, recipient3, date, subject, salutation, items, discount, showDiscount, notes },
+      });
+      setSavedId(id);
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 2000);
+    } catch {
+      alert("Failed to save quotation. Check your connection and try again.");
+    }
   }
 
   function resetForm() {

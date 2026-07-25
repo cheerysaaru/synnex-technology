@@ -338,16 +338,20 @@ export default function NewInvoicePage() {
     });
 
   async function handleSave() {
-    const id = savedId || crypto.randomUUID();
-    await saveInvoice({
-      id,
-      name: recipient1 || "Untitled",
-      savedAt: new Date().toISOString(),
-      data: { recipient1, recipient2, recipient3, date, invoiceNo, items, taxPercent, paymentsCredits, notes },
-    });
-    setSavedId(id);
-    setShowSaved(true);
-    setTimeout(() => setShowSaved(false), 2000);
+    try {
+      const id = savedId || crypto.randomUUID();
+      await saveInvoice({
+        id,
+        name: recipient1 || "Untitled",
+        savedAt: new Date().toISOString(),
+        data: { recipient1, recipient2, recipient3, date, invoiceNo, items, taxPercent, paymentsCredits, notes },
+      });
+      setSavedId(id);
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 2000);
+    } catch {
+      alert("Failed to save invoice. Check your connection and try again.");
+    }
   }
 
   function resetForm() {
