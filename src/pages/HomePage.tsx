@@ -7,13 +7,27 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [savedQ, setSavedQ] = useState<SavedQuotation[]>([]);
   const [savedI, setSavedI] = useState<SavedInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [q, i] = await Promise.all([getSavedQuotations(), getSavedInvoices()]);
+      if (!cancelled) {
+        setSavedQ(q);
+        setSavedI(i);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   async function refresh() {
-    setSavedQ(await getSavedQuotations());
-    setSavedI(await getSavedInvoices());
+    const [q, i] = await Promise.all([getSavedQuotations(), getSavedInvoices()]);
+    setSavedQ(q);
+    setSavedI(i);
   }
-
-  useEffect(() => { refresh(); }, []);
 
   function handleLoadQuotation(q: SavedQuotation) {
     navigate("/quotation/new", { state: { loadQuotation: { ...q.data, savedId: q.id } } });
@@ -70,11 +84,15 @@ export default function HomePage() {
           />
         </div>
 
-        {savedQ.length > 0 && (
-          <section className="mt-10 w-full max-w-3xl">
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-500">
-              Saved Quotations
-            </h2>
+        <section className="mt-10 w-full max-w-3xl">
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-500">
+            Saved Quotations
+          </h2>
+          {loading ? (
+            <p className="text-sm text-gray-400">Loading...</p>
+          ) : savedQ.length === 0 ? (
+            <p className="text-sm text-gray-400">No saved quotations yet.</p>
+          ) : (
             <div className="space-y-2">
               {savedQ.map((q) => (
                 <div
@@ -111,14 +129,18 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
-        {savedI.length > 0 && (
-          <section className="mt-6 w-full max-w-3xl">
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-500">
-              Saved Invoices
-            </h2>
+        <section className="mt-6 w-full max-w-3xl">
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-500">
+            Saved Invoices
+          </h2>
+          {loading ? (
+            <p className="text-sm text-gray-400">Loading...</p>
+          ) : savedI.length === 0 ? (
+            <p className="text-sm text-gray-400">No saved invoices yet.</p>
+          ) : (
             <div className="space-y-2">
               {savedI.map((inv) => (
                 <div
@@ -155,8 +177,8 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
       </main>
 
       <footer className="border-t border-gray-200 px-6 py-5 text-center text-xs text-gray-400">
