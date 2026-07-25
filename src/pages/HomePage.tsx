@@ -8,9 +8,9 @@ export default function HomePage() {
   const [savedQ, setSavedQ] = useState<SavedQuotation[]>([]);
   const [savedI, setSavedI] = useState<SavedInvoice[]>([]);
 
-  function refresh() {
-    setSavedQ(getSavedQuotations());
-    setSavedI(getSavedInvoices());
+  async function refresh() {
+    setSavedQ(await getSavedQuotations());
+    setSavedI(await getSavedInvoices());
   }
 
   useEffect(() => { refresh(); }, []);
@@ -19,8 +19,8 @@ export default function HomePage() {
     navigate("/quotation/new", { state: { loadQuotation: { ...q.data, savedId: q.id } } });
   }
 
-  function handleDeleteQuotation(id: string) {
-    deleteQuotation(id);
+  async function handleDeleteQuotation(id: string) {
+    await deleteQuotation(id);
     refresh();
   }
 
@@ -28,8 +28,8 @@ export default function HomePage() {
     navigate("/invoice/new", { state: { loadInvoice: { ...inv.data, savedId: inv.id } } });
   }
 
-  function handleDeleteInvoice(id: string) {
-    deleteInvoice(id);
+  async function handleDeleteInvoice(id: string) {
+    await deleteInvoice(id);
     refresh();
   }
 

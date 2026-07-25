@@ -1,10 +1,7 @@
 import type { ItemRow } from "../pages/NewQuotationPage";
 import type { InvoiceItemRow } from "../pages/NewInvoicePage";
 
-const QUOTATION_KEY = "synnex_saved_quotations";
-const INVOICE_KEY = "synnex_saved_invoices";
-
-// ── Quotations ──
+const API = "/api";
 
 export interface SavedQuotation {
   id: string;
@@ -24,34 +21,6 @@ export interface SavedQuotation {
   };
 }
 
-export function getSavedQuotations(): SavedQuotation[] {
-  try {
-    const raw = localStorage.getItem(QUOTATION_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-export function saveQuotation(q: SavedQuotation): void {
-  const list = getSavedQuotations();
-  const idx = list.findIndex((x) => x.id === q.id);
-  if (idx >= 0) {
-    list[idx] = q;
-  } else {
-    list.unshift(q);
-  }
-  localStorage.setItem(QUOTATION_KEY, JSON.stringify(list));
-}
-
-export function deleteQuotation(id: string): void {
-  const list = getSavedQuotations().filter((x) => x.id !== id);
-  localStorage.setItem(QUOTATION_KEY, JSON.stringify(list));
-}
-
-// ── Invoices ──
-
 export interface SavedInvoice {
   id: string;
   name: string;
@@ -69,28 +38,46 @@ export interface SavedInvoice {
   };
 }
 
-export function getSavedInvoices(): SavedInvoice[] {
+export async function getSavedQuotations(): Promise<SavedQuotation[]> {
   try {
-    const raw = localStorage.getItem(INVOICE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
+    const res = await fetch(`${API}/quotations`);
+    if (!res.ok) return [];
+    return await res.json();
   } catch {
     return [];
   }
 }
 
-export function saveInvoice(inv: SavedInvoice): void {
-  const list = getSavedInvoices();
-  const idx = list.findIndex((x) => x.id === inv.id);
-  if (idx >= 0) {
-    list[idx] = inv;
-  } else {
-    list.unshift(inv);
-  }
-  localStorage.setItem(INVOICE_KEY, JSON.stringify(list));
+export async function saveQuotation(q: SavedQuotation): Promise<void> {
+  await fetch(`${API}/quotations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(q),
+  });
 }
 
-export function deleteInvoice(id: string): void {
-  const list = getSavedInvoices().filter((x) => x.id !== id);
-  localStorage.setItem(INVOICE_KEY, JSON.stringify(list));
+export async function deleteQuotation(id: string): Promise<void> {
+  await fetch(`${API}/quotations/${id}`, { method: "DELETE" });
+}
+
+export async function getSavedInvoices(): Promise<SavedInvoice[]> {
+  try {
+    const res = await fetch(`${API}/invoices`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function saveInvoice(inv: SavedInvoice): Promise<void> {
+  await fetch(`${API}/invoices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(inv),
+  });
+}
+
+export async function deleteInvoice(id: string): Promise<void> {
+  await fetch(`${API}/invoices/${id}`, { method: "DELETE" });
 }

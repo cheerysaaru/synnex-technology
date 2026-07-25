@@ -284,9 +284,9 @@ export default function NewQuotationPage() {
       return row.description.trim().length > 0 && qty > 0 && rate > 0;
     });
 
-  function handleSave() {
+  async function handleSave() {
     const id = savedId || crypto.randomUUID();
-    saveQuotation({
+    await saveQuotation({
       id,
       name: recipient1 || "Untitled",
       savedAt: new Date().toISOString(),
