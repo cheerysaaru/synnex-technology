@@ -107,6 +107,40 @@ nginx, inside the `server { … }` block for synnex-technology.com:
 location /quotation/ { proxy_pass http://127.0.0.1:3001; proxy_set_header Host $host; client_max_body_size 20m; }
 ```
 
+### CyberPanel (OpenLiteSpeed)
+1. Open a terminal (CyberPanel → **Terminal**, or SSH as root) and install Node 22:
+   `curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs git`
+   (AlmaLinux/Rocky: `curl -fsSL https://rpm.nodesource.com/setup_22.x | bash - && dnf install -y nodejs git`)
+2. Get the app, build it and keep it running:
+   ```
+   cd /home/synnex-technology.com
+   git clone https://github.com/cheerysaaru/synnex-technology.git quotation-app
+   cd quotation-app && npm ci && npm run build
+   npm i -g pm2
+   BASE_PATH=/quotation ACCESS_PIN=1234 PORT=3001 pm2 start server.mjs --name quotation
+   pm2 save && pm2 startup
+   ```
+3. CyberPanel → Websites → List Websites → synnex-technology.com → **Manage** →
+   **vHost Conf**, add at the end and save:
+   ```
+   extprocessor quotationapp {
+     type                    proxy
+     address                 127.0.0.1:3001
+     maxConns                100
+     initTimeout             60
+     retryTimeout            0
+     respBuffer              0
+   }
+   context /quotation/ {
+     type                    proxy
+     handler                 quotationapp
+     addDefaultCharset       off
+   }
+   ```
+4. Same page → **Rewrite Rules**, add `RewriteRule ^quotation$ /quotation/ [R=301,L]`, save.
+5. Restart OpenLiteSpeed: `systemctl restart lsws`. Open `https://synnex-technology.com/quotation/`.
+6. Updating later: `cd /home/synnex-technology.com/quotation-app && git pull && npm ci && npm run build && pm2 restart quotation`.
+
 ### Static only (no server)
 Upload the contents of `dist/` to `public_html/quotation/`. It works, but
 each browser keeps its own data (no shared database, no backup on the server).
