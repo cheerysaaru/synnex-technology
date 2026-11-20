@@ -100,6 +100,8 @@ export interface DocData {
   titlePlace?: "table" | "top";
   /** Print the title in capitals (default) or exactly as typed. */
   titleCaps?: boolean;
+  /** Letter case of the title; replaces titleCaps. "typed" prints it exactly as written. */
+  titleCase?: "upper" | "lower" | "title" | "typed";
   /** Text size and weight for this document (only the parts you changed). */
   text?: TextOverrides;
   discount: { mode: "amount" | "percent"; value: number };

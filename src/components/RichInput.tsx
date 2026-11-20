@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bold, Italic, RemoveFormatting, Underline } from "lucide-react";
 import { htmlToRich, richToHtml } from "../lib/rich";
+import { applyCase } from "../lib/typography";
 import { cx } from "./ui";
 
 const COLORS = ["#262626", "#595959", "#C00000", "#E36C09", "#2E7D32", "#1F4E9E", "#2563EB", "#7030A0"];
@@ -109,6 +110,29 @@ export function RichInput({ value, onChange, multiline = false, placeholder, ari
       }
     });
 
+  /* Change case of the selected words (keeps them selected). */
+  const changeCase = (c: "upper" | "lower" | "title" | "sentence") =>
+    run(() => {
+      const sel = window.getSelection();
+      const text = sel?.toString() || "";
+      if (!text) return;
+      document.execCommand("insertText", false, applyCase(text, c));
+      // Re-select what was just inserted.
+      const after = window.getSelection();
+      if (after && after.rangeCount && after.focusNode) {
+        const r = after.getRangeAt(0);
+        const node = r.endContainer;
+        if (node.nodeType === Node.TEXT_NODE && r.endOffset >= text.length) {
+          const nr = document.createRange();
+          nr.setStart(node, r.endOffset - text.length);
+          nr.setEnd(node, r.endOffset);
+          after.removeAllRanges();
+          after.addRange(nr);
+          saved.current = nr.cloneRange();
+        }
+      }
+    });
+
   const keep = (e: React.MouseEvent) => e.preventDefault(); // keep the text selected while using the toolbar
   const btn = (on: boolean) => cx("flex h-7 w-7 items-center justify-center rounded-md", on ? "bg-ink text-white" : "text-ink hover:bg-panel");
 
@@ -149,6 +173,24 @@ export function RichInput({ value, onChange, multiline = false, placeholder, ari
             <option value="" disabled>Size</option>
             <option value="auto">Normal</option>
             {SIZES.map((n) => <option key={n} value={n}>{n} pt</option>)}
+          </select>
+          <select
+            aria-label="Change case"
+            title="Change case of the selected words"
+            defaultValue=""
+            onMouseDown={remember}
+            onChange={(e) => {
+              const v = e.target.value as "upper" | "lower" | "title" | "sentence";
+              e.target.value = "";
+              if (v) changeCase(v);
+            }}
+            className="ml-1 h-7 cursor-pointer rounded-md border border-line bg-white px-1 text-[12px] text-ink"
+          >
+            <option value="" disabled>Aa</option>
+            <option value="upper">ALL CAPS</option>
+            <option value="lower">all small</option>
+            <option value="title">Mixed (Title Case)</option>
+            <option value="sentence">Sentence case</option>
           </select>
           <span className="mx-1 h-5 w-px bg-line" />
           {COLORS.map((c) => (

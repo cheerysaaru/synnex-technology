@@ -583,7 +583,7 @@ const TITLE_SUGGESTIONS: Record<DocType, string[]> = {
 
 /* The document title (QUOTATION, INVOICE…): wording, capitals and position. */
 function TitleEditor({ doc, update, compact }: { doc: DocData; update: (p: Partial<DocData>) => void; compact?: boolean }) {
-  const caps = doc.titleCaps !== false;
+  const tCase = doc.titleCase || (doc.titleCaps === false ? "typed" : "upper");
   const hasTable = doc.type !== "letter";
   return (
     <div className="space-y-2.5">
@@ -600,7 +600,7 @@ function TitleEditor({ doc, update, compact }: { doc: DocData; update: (p: Parti
         </div>
       ) : null}
       <div className="flex flex-wrap items-end gap-4">
-        <Segmented label="Letters" value={caps ? "caps" : "typed"} options={[["caps", "ALL CAPITALS"], ["typed", "As typed"]]} onChange={(v) => update({ titleCaps: v === "caps" })} />
+        <Segmented label="Letters" value={tCase} options={[["upper", "ALL CAPS"], ["lower", "all small"], ["title", "Mixed"], ["typed", "As typed"]]} onChange={(v) => update({ titleCase: v as DocData["titleCase"], titleCaps: undefined })} />
         {hasTable ? (
           <Segmented
             label="Where it prints"

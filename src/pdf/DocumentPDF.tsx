@@ -9,7 +9,7 @@ import type { DocData, Section, Settings } from "../types";
 import { amountInWords, computeTotals, formatDate, lineAmount, money, qtyText } from "../lib/calc";
 import { registerFonts } from "./fonts";
 import { defaultHeading } from "../lib/document";
-import { applyOverrides, resolveText, type TextRole, type Weight } from "../lib/typography";
+import { applyCase, applyOverrides, resolveText, type TextCase, type TextRole, type Weight } from "../lib/typography";
 import { isRich, parseRich, plainText, type Run } from "../lib/rich";
 
 registerFonts();
@@ -103,19 +103,24 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   /* "simple": centred letterhead, open layout, full-grid table (default).
      "boxed": company left, info grid right, grey heading bars. */
   const SIMPLE = (settings.brand.layout || "simple") === "simple";
-  const caps = data.titleCaps !== false;
-  const titleText = caps ? (data.title || "").toUpperCase() : data.title || "";
-  const titleSpacing = caps ? 2.5 : 0.3;
+  /* Title letters: ALL CAPS (default), all small, Mixed or as typed. */
+  const tCase: TextCase | "typed" = data.titleCase || (data.titleCaps === false ? "typed" : "upper");
+  const titleText = tCase === "typed" ? data.title || "" : applyCase(data.title || "", tCase);
+  const titleSpacing = tCase === "upper" ? 2.5 : 0.3;
   /* Size and weight per part: the saved default, then this document's own. Body
      text scales everything that has no setting of its own. */
   const font = settings.brand.font || "Source Sans 3";
   const TX = applyOverrides(resolveText(SIMPLE ? "simple" : "boxed", settings.brand.text), data.text);
   const F = (r: TextRole) => faceFor(font, TX[r].weight);
   /* Size, plus colour when one was picked (name and title default to the brand colour). */
-  const fs = (r: TextRole): { fontSize: number; color?: string } => {
+  const TRANSFORM = { upper: "uppercase", lower: "lowercase", title: "capitalize" } as const;
+  const tf = (r: TextRole) => (TX[r].case ? { textTransform: TRANSFORM[TX[r].case!] } : {});
+  const fs = (r: TextRole): { fontSize: number; color?: string; textTransform?: "uppercase" | "lowercase" | "capitalize" } => {
     const c = TX[r].color || (r === "name" || r === "title" ? TITLE : undefined);
-    return c ? { fontSize: TX[r].size, color: c } : { fontSize: TX[r].size };
+    return { fontSize: TX[r].size, ...(c ? { color: c } : {}), ...(r === "title" ? {} : tf(r)) };
   };
+  /* Plain words in a part's chosen letter case; "fallback" is the layout's own styling. */
+  const cased = (text: string, r: TextRole, fallback: (t: string) => string = (t) => t) => (TX[r].case ? applyCase(text, TX[r].case) : fallback(text));
   const k = TX.body.size / 9.2;
   const z = (n: number) => Math.round(n * k * 100) / 100;
   const s = scaleSheet(base, k);
@@ -142,7 +147,9 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   const filled = (v: string) => plainText(v).trim().length > 0;
   /* Money, or blank when it is zero (nothing priced yet). */
   const mz = (n: number) => (n ? money(n) : "");
-  s.td = { ...s.td, fontSize: TX.table.size, ...(TX.table.color ? { color: TX.table.color } : {}) };
+  s.td = { ...s.td, fontSize: TX.table.size, ...(TX.table.color ? { color: TX.table.color } : {}), ...tf("table") };
+  s.para = { ...s.para, ...tf("body") };
+  s.line = { ...s.line, ...tf("body") };
   const fill = { backgroundColor: FILL };
   /* Heading text for a section, or null when the user hid it. */
   const headingOf = (sec: Section | undefined, type: Section["type"]): string | null => {
@@ -155,9 +162,9 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   const secOf = (type: Section["type"]) => enabled.find((x) => x.type === type);
   const Bar = ({ children, width }: { children: string; width?: string }) =>
     SIMPLE ? (
-      <Text style={[F("headings"), fs("headings"), { marginBottom: 2 }]}>{children}</Text>
+      <Text style={[F("headings"), fs("headings"), { marginBottom: 2 }]}>{cased(children, "headings")}</Text>
     ) : (
-      <Text style={[s.bar, F("headings"), fs("headings"), fill, width ? { width } : {}]}>{children.toUpperCase()}</Text>
+      <Text style={[s.bar, F("headings"), fs("headings"), fill, width ? { width } : {}]}>{cased(children, "headings", (t) => t.toUpperCase())}</Text>
     );
 
   /* --- header: company left, title + info grid right */
@@ -174,7 +181,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   const Company = () => (
     <View style={{ maxWidth: "52%" }}>
       {co.logo ? <Image src={co.logo} style={{ height: 40, maxWidth: 150, objectFit: "contain", marginBottom: 6 }} /> : null}
-      <Text style={[s.coName, F("name"), fs("name")]}>{co.name.replace(/\b([A-Z])([A-Z]+)\b/g, (_m, a, b) => a + b.toLowerCase())}</Text>
+      <Text style={[s.coName, F("name"), fs("name")]}>{cased(co.name, "name", (t) => t.replace(/\b([A-Z])([A-Z]+)\b/g, (_m, a, b) => a + b.toLowerCase()))}</Text>
       {companyLines.map((l, i) => <Text key={i} style={s.coLine}>{l}</Text>)}
     </View>
   );
@@ -212,7 +219,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
     <View style={{ alignItems: "center", marginBottom: 16 }}>
       {co.logo ? <Image src={co.logo} style={{ height: 38, maxWidth: 150, objectFit: "contain", marginBottom: 5 }} /> : null}
       {has(co.tagline) ? <Text style={{ fontSize: z(8.8), color: MUTE, marginBottom: 2 }}>{co.tagline}</Text> : null}
-      <Text style={[F("name"), fs("name"), { letterSpacing: 3, marginBottom: 3 }]}>{co.name.toUpperCase()}</Text>
+      <Text style={[F("name"), fs("name"), { letterSpacing: TX.name.case && TX.name.case !== "upper" ? 0.5 : 3, marginBottom: 3 }]}>{cased(co.name, "name", (t) => t.toUpperCase())}</Text>
       {[[co.addressLine1, co.addressLine2].filter(has).join(" "), [co.phone && `Tel: ${co.phone}`, co.mobile && `Mobile: ${co.mobile}`].filter(has).join("   "), co.email && `Email: ${co.email}`, co.website, co.registrationNo && `Reg. No. ${co.registrationNo}`]
         .filter(has)
         .map((l, i) => <Text key={i} style={{ fontSize: z(9), lineHeight: 1.4, color: "#4d4d4d" }}>{l}</Text>)}
@@ -312,7 +319,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
         {secOf("items")?.hideHeading ? null : (
           <View style={[s.tr, box(true)]} minPresenceAhead={30}>
             {colKeys.map((k, i) => (
-              <Text key={k} style={[s.td, F("tableHead"), fs("tableHead"), { width: `${widths[k]}%`, textAlign: "center", paddingVertical: 4 }, i < colKeys.length - 1 ? s.vline : {}]}>{head[k]}</Text>
+              <Text key={k} style={[s.td, F("tableHead"), { textTransform: "none" }, fs("tableHead"), { width: `${widths[k]}%`, textAlign: "center", paddingVertical: 4 }, i < colKeys.length - 1 ? s.vline : {}]}>{head[k]}</Text>
             ))}
           </View>
         )}
@@ -365,7 +372,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
       <View style={{ alignSelf: "flex-end", width: "48%", marginBottom: 12 }} wrap={false}>
         {rows.map((r) => (
           <View key={r.label} style={{ flexDirection: "row", paddingVertical: 2 }}>
-            <Text style={[F(r.strong ? "grandTotal" : "totals"), fs(r.strong ? "grandTotal" : "totals"), { flex: 1, textAlign: "right", paddingRight: 14 }]}>{r.label}</Text>
+            <Text style={[F(r.strong ? "grandTotal" : "totals"), fs(r.strong ? "grandTotal" : "totals"), { flex: 1, textAlign: "right", paddingRight: 14 }]}>{cased(r.label, r.strong ? "grandTotal" : "totals")}</Text>
             <Text style={[F(r.strong ? "grandTotal" : "totals"), fs(r.strong ? "grandTotal" : "totals"), { width: 110, textAlign: "right" }]}>{r.value}</Text>
           </View>
         ))}
@@ -397,7 +404,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
         <View>
           {secOf("items")?.hideHeading ? null : <View style={[s.tr, fill, { borderWidth: 0.6, borderColor: RULE }]} minPresenceAhead={30}>
             {colKeys.map((k, i) => (
-              <Text key={k} style={[s.th, F("tableHead"), fs("tableHead"), { width: `${widths[k]}%`, textAlign: k === "description" ? "left" : "center" }, i < colKeys.length - 1 ? s.vline : {}]}>{head[k].toUpperCase()}</Text>
+              <Text key={k} style={[s.th, F("tableHead"), fs("tableHead"), { width: `${widths[k]}%`, textAlign: k === "description" ? "left" : "center" }, i < colKeys.length - 1 ? s.vline : {}]}>{cased(head[k], "tableHead", (t) => t.toUpperCase())}</Text>
             ))}
           </View>}
           {visibleItems.map((it, idx) => {
@@ -467,7 +474,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
         <View style={{ width: `${rightW}%` }}>
           {rows.map((r, i) => (
             <View key={r.label + i} style={[{ flexDirection: "row", borderWidth: 0.75, borderColor: RULE, borderTopWidth: attached || i > 0 ? 0 : 0.75, borderLeftWidth: attached ? 0 : 0.75 }, r.total ? fill : {}]}>
-              <Text style={[s.totLabel, F(r.total ? "grandTotal" : "totals"), fs(r.total ? "grandTotal" : "totals"), { flex: 1, fontSize: r.total ? Math.max(TX.totals.size, TX.grandTotal.size - 1.2) : TX.totals.size }]}>{r.label}</Text>
+              <Text style={[s.totLabel, F(r.total ? "grandTotal" : "totals"), fs(r.total ? "grandTotal" : "totals"), { flex: 1, fontSize: r.total ? Math.max(TX.totals.size, TX.grandTotal.size - 1.2) : TX.totals.size }]}>{cased(r.label, r.total ? "grandTotal" : "totals")}</Text>
               {r.total ? <Text style={[s.totValue, T.regular, { width: 26, textAlign: "left", paddingHorizontal: 0 }]}>{r.value ? cur : ""}</Text> : null}
               <Text style={[s.totValue, r.total ? F("grandTotal") : T.regular, fs(r.total ? "grandTotal" : "totals"), { width: `${(widths.amount / rightW) * 100}%`, fontSize: r.total ? TX.grandTotal.size : TX.totals.size + 0.8 }]}>{r.value}</Text>
             </View>
