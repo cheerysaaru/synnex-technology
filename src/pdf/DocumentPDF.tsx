@@ -10,7 +10,7 @@ import { amountInWords, computeTotals, formatDate, lineAmount, money, qtyText } 
 import { registerFonts } from "./fonts";
 import { defaultHeading } from "../lib/document";
 import { applyCase, applyOverrides, resolveText, type TextCase, type TextRole, type Weight } from "../lib/typography";
-import { isRich, parseRich, plainText, type Run } from "../lib/rich";
+import { isRich, parseRich, plainText, richLines, type Run } from "../lib/rich";
 
 registerFonts();
 
@@ -90,7 +90,6 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   const data: DocData = T.embedded ? raw : JSON.parse(JSON.stringify(raw), (_k, v) => (typeof v === "string" ? clean(v) : v));
   const TITLE = settings.brand.primary || "#3F3F3F";
   const FILL = settings.brand.accent || "#D9D9D9";
-  const zebra = Boolean(settings.brand.zebra);
   const co = settings.company;
   const fmt = (iso: string) => formatDate(iso, settings.defaults.dateFormat);
   const cur = settings.defaults.currency || "Rs";
@@ -344,7 +343,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
             amount: amt != null ? money(amt) : "",
           };
           return (
-            <View key={it.id} style={[s.tr, box(first), zebra && n % 2 === 0 ? { backgroundColor: "#f4f4f4" } : {}]} wrap={false}>
+            <View key={it.id} style={[s.tr, box(first)]} wrap={false}>
               {colKeys.map((k, i) => (
                 <Cell key={k} k={k} last={i === colKeys.length - 1}>
                   <Text style={[s.td, F("table"), { textAlign: align(k), paddingVertical: 3 }]}>{k === "description" ? rt(it.description) : cell[k]}</Text>
@@ -461,7 +460,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
               amount: amt != null ? money(amt) : "-",
             };
             return (
-              <View key={it.id} style={[s.tr, side(idx), zebra && idx % 2 ? { backgroundColor: "#f2f2f2" } : {}]} wrap={false}>
+              <View key={it.id} style={[s.tr, side(idx)]} wrap={false}>
                 {colKeys.map((k, i) => (
                   <Cell key={k} k={k} last={i === colKeys.length - 1}>
                     <Text style={[s.td, F("table"), { textAlign: align(k), paddingLeft: k === "description" && A.text === "left" ? 12 : 6 }]}>{k === "description" ? rt(it.description) : cell[k]}</Text>
@@ -572,7 +571,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
               <View key={sec.id} style={{ marginBottom: 10 }} wrap={false}>
                 {h ? <Bar>{h}</Bar> : null}
                 {has(data.subject) ? <Text style={[T.strong, { fontSize: z(9.8), marginBottom: 4 }]}>{rt(data.subject)}</Text> : null}
-                {withIntro ? data.intro.split("\n").filter(filled).map((p, k) => <Text key={k} style={s.para}>{rt(p)}</Text>) : null}
+                {withIntro ? richLines(data.intro).filter(filled).map((p, k) => <Text key={k} style={s.para}>{rt(p)}</Text>) : null}
               </View>,
             );
             if (withIntro) i++;
@@ -589,7 +588,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
               {headingOf(sec, "subject") ? <Bar>{headingOf(sec, "subject")!}</Bar> : null}
               <View style={[s.box, headingOf(sec, "subject") ? {} : { borderTopWidth: 0.6 }]}>
                 {has(data.subject) ? <Text style={[T.strong, { fontSize: z(9.6), marginBottom: withIntro ? 4 : 0 }]}>{rt(data.subject)}</Text> : null}
-                {withIntro ? data.intro.split("\n").filter(filled).map((p, k) => <Text key={k} style={s.para}>{rt(p)}</Text>) : null}
+                {withIntro ? richLines(data.intro).filter(filled).map((p, k) => <Text key={k} style={s.para}>{rt(p)}</Text>) : null}
               </View>
             </View>,
           );
@@ -601,7 +600,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
         if (has(data.intro)) {
           out.push(
             <View key={sec.id} style={s.block}>
-              {data.intro.split(/\n/).filter(filled).map((p, k) => <Text key={k} style={[s.para, { textAlign: "justify" }]}>{rt(p)}</Text>)}
+              {richLines(data.intro).filter(filled).map((p, k) => <Text key={k} style={[s.para, { textAlign: "justify" }]}>{rt(p)}</Text>)}
             </View>,
           );
         }
@@ -679,7 +678,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
             <View key={sec.id} style={s.block} wrap={false}>
               {headingOf(sec, "custom") ? <Bar>{headingOf(sec, "custom")!}</Bar> : null}
               <View style={headingOf(sec, "custom") ? [s.box, { minHeight: 0 }] : {}}>
-                {(sec.text || "").split("\n").filter(filled).map((p, k) => <Text key={k} style={s.para}>{rt(p)}</Text>)}
+                {richLines(sec.text).filter(filled).map((p, k) => <Text key={k} style={s.para}>{rt(p)}</Text>)}
               </View>
             </View>,
           );
@@ -706,7 +705,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
         if (has(data.closing) || has(data.signatoryName)) {
           out.push(
             <View key={sec.id} style={[s.block, { marginTop: 4 }]} wrap={false}>
-              {(data.closing || "").split("\n").filter(filled).map((l, k) => <Text key={k} style={s.line}>{rt(l)}</Text>)}
+              {richLines(data.closing).filter(filled).map((l, k) => <Text key={k} style={s.line}>{rt(l)}</Text>)}
               {data.showSignatureLine ? <View style={{ width: 170, borderTopWidth: 0.75, borderTopColor: INK, marginTop: 30, marginBottom: 3 }} /> : <View style={{ height: 20 }} />}
               {has(data.signatoryName) ? <Text style={[T.strong, { fontSize: z(9.4) }]}>{data.signatoryName}</Text> : null}
               {has(data.signatoryTitle) ? <Text style={[s.line, { color: MUTE }]}>{data.signatoryTitle}</Text> : null}

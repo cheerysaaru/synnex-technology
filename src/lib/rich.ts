@@ -27,9 +27,11 @@ function parseAttrs(a: string): Omit<Run, "text"> {
   return out;
 }
 
-/* One line of stored text as runs. Plain text is one unformatted run. */
-export function parseLine(line: string): Run[] {
-  if (!isRich(line)) return line ? [{ text: line }] : [];
+/* One line of stored text as runs. Plain text is one unformatted run.
+   "rich" says whether the whole value is formatted text: then every line,
+   even one without runs, has & < > stored as &amp; &lt; &gt;. */
+export function parseLine(line: string, rich = isRich(line)): Run[] {
+  if (!rich) return line ? [{ text: line }] : [];
   const runs: Run[] = [];
   let last = 0;
   for (const m of line.matchAll(RUN_RE)) {
@@ -41,7 +43,10 @@ export function parseLine(line: string): Run[] {
   return runs.filter((r) => r.text);
 }
 
-export const parseRich = (v: string | null | undefined): Run[][] => (v || "").split("\n").map(parseLine);
+export const parseRich = (v: string | null | undefined): Run[][] => {
+  const rich = isRich(v);
+  return (v || "").split("\n").map((line) => parseLine(line, rich));
+};
 
 const styled = (r: Run) => Boolean(r.b || r.i || r.u || r.c || r.s);
 const sameStyle = (a: Run, b: Run) => !!a.b === !!b.b && !!a.i === !!b.i && !!a.u === !!b.u && a.c === b.c && a.s === b.s;
@@ -69,6 +74,10 @@ export function serializeRich(lines: Run[][]): string {
     })
     .join("\n");
 }
+
+/* Split stored text into lines that each stand on their own (a line without
+   formatting comes back as plain text). */
+export const richLines = (v: string | null | undefined): string[] => (isRich(v) ? parseRich(v).map((l) => serializeRich([l])) : (v || "").split("\n"));
 
 /* Text without formatting, for lists, search and file names. */
 export const plainText = (v: string | null | undefined) => (isRich(v) ? parseRich(v).map((l) => l.map((r) => r.text).join("")).join("\n") : v || "");
