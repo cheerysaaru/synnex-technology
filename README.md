@@ -69,9 +69,47 @@ Copy the `data` folder to back up everything. Documents saved by the previous ve
 | `PORT` | Port to listen on (default 3001) |
 | `ACCESS_PIN` | Require a PIN to open the app, e.g. `ACCESS_PIN=2468 npm start` |
 | `STORAGE=json` | Use the JSON file instead of SQLite |
+| `BASE_PATH` | Serve from a sub-folder, e.g. `BASE_PATH=/quotation` for `synnex-technology.com/quotation/` |
+| `DATA_DIR` | Folder for the database (default `./data`) |
 | `CORS_ORIGIN`, `VITE_API_URL` | Only if the app and the server are on different domains |
 
 On Windows PowerShell: `$env:ACCESS_PIN="2468"; npm start`
+
+## Put it on your website (synnex-technology.com/quotation)
+
+The app needs Node.js 20 or newer on the server (22.5+ uses SQLite; older
+versions use the JSON file automatically). **Always set `ACCESS_PIN` online**,
+or anyone who finds the page can read your quotations.
+
+### cPanel hosting with "Setup Node.js App"
+1. On your computer run `npm run build`.
+2. Zip everything **except** `node_modules` and `data`, upload it to a new
+   folder outside `public_html`, e.g. `~/quotation-app`, and extract it.
+3. cPanel → **Setup Node.js App** → Create application:
+   Node.js version 20+ · Application root `quotation-app` ·
+   Application URL `synnex-technology.com/quotation` ·
+   Application startup file `server.mjs`.
+4. Add environment variables `BASE_PATH=/quotation` and `ACCESS_PIN=your PIN`.
+5. Press **Run NPM Install**, then **Restart**. Open
+   `https://synnex-technology.com/quotation/`.
+6. To move your existing data: upload your `data` folder into `quotation-app`
+   (or use Settings → Data → Download backup / Restore).
+
+### VPS (Ubuntu, nginx)
+```
+git clone https://github.com/cheerysaaru/synnex-technology.git /opt/quotation
+cd /opt/quotation && npm ci && npm run build
+sudo npm i -g pm2
+BASE_PATH=/quotation ACCESS_PIN=1234 PORT=3001 pm2 start server.mjs --name quotation && pm2 save
+```
+nginx, inside the `server { … }` block for synnex-technology.com:
+```
+location /quotation/ { proxy_pass http://127.0.0.1:3001; proxy_set_header Host $host; client_max_body_size 20m; }
+```
+
+### Static only (no server)
+Upload the contents of `dist/` to `public_html/quotation/`. It works, but
+each browser keeps its own data (no shared database, no backup on the server).
 
 ## API
 

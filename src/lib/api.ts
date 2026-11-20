@@ -52,7 +52,9 @@ export interface Backend {
 
 /* ------------------------------------------------------------------ server */
 const TOKEN_KEY = "synnex_token";
-const BASE = ((import.meta.env.VITE_API_URL as string | undefined) || "").replace(/\/+$/, "");
+/* The API lives next to the app: at /api, or /quotation/api when the app is
+   opened from synnex-technology.com/quotation/. VITE_API_URL overrides it. */
+const BASE = ((import.meta.env.VITE_API_URL as string | undefined) || (typeof location !== "undefined" ? location.pathname.replace(/\/[^/]*$/, "") : "")).replace(/\/+$/, "");
 
 async function http<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;

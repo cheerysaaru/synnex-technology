@@ -49,7 +49,10 @@ const addDays = (iso, days) => {
   return d.toISOString().slice(0, 10);
 };
 
-export async function createApp({ dataDir = path.join(ROOT, 'data'), staticDir = path.join(ROOT, 'dist'), accessPin = process.env.ACCESS_PIN || '', corsOrigin = process.env.CORS_ORIGIN || '' } = {}) {
+export async function createApp({ dataDir = process.env.DATA_DIR || path.join(ROOT, 'data'), staticDir = path.join(ROOT, 'dist'), accessPin = process.env.ACCESS_PIN || '', corsOrigin = process.env.CORS_ORIGIN || '', basePath = process.env.BASE_PATH || '' } = {}) {
+  /* Served under a sub-folder, e.g. BASE_PATH=/quotation for
+     synnex-technology.com/quotation/. Requests may arrive with or without it. */
+  const base = ('/' + basePath.replace(/^\/+|\/+$/g, '')).replace(/^\/$/, '');
   const store = await openStore(dataDir);
 
   /* ----------------------------------------------------------- settings */
@@ -411,6 +414,14 @@ export async function createApp({ dataDir = path.join(ROOT, 'data'), staticDir =
 
   const handler = async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
+    if (base) {
+      // "/quotation" → "/quotation/" so the page's relative links resolve.
+      if (url.pathname === base) {
+        res.writeHead(301, { Location: base + '/' + url.search });
+        return res.end();
+      }
+      if (url.pathname.startsWith(base + '/')) url.pathname = url.pathname.slice(base.length);
+    }
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
     if (corsOrigin) {
