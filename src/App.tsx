@@ -1,49 +1,122 @@
-import { Suspense, lazy } from "react";
-import { HashRouter, Routes, Route, Link } from "react-router-dom";
+import { Suspense, lazy, useState } from "react";
+import { HashRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Lock } from "lucide-react";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { AppShell } from "./components/AppShell";
+import { Wordmark } from "./components/Brand";
+import { Button, Input, Spinner } from "./components/ui";
+import { AppProvider, useApp } from "./lib/app";
+import { login } from "./lib/api";
+import type { DocType } from "./types";
 
-const HomePage = lazy(() => import("./pages/HomePage"));
-const NewQuotationPage = lazy(() => import("./pages/NewQuotationPage"));
-const NewInvoicePage = lazy(() => import("./pages/NewInvoicePage"));
-const NewDocumentPage = lazy(() => import("./pages/NewDocumentPage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const DocumentsList = lazy(() => import("./pages/DocumentsList"));
+const Editor = lazy(() => import("./pages/Editor"));
+const Customers = lazy(() => import("./pages/Customers"));
+const Catalog = lazy(() => import("./pages/Catalog"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
 
-function LoadingFallback() {
+function Loading() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white">
-      <p className="text-sm text-gray-400">Loading...</p>
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <Spinner />
     </div>
   );
 }
 
-function NotFound() {
+function PinGate() {
+  const { reconnect, settings } = useApp();
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-6 text-center">
-      <h1 className="font-display text-4xl font-semibold">404</h1>
-      <p className="text-sm text-gray-500">Page not found.</p>
-      <Link
-        to="/"
-        className="border border-black px-6 py-2 text-sm text-black transition-colors hover:bg-gray-100"
+    <div className="flex min-h-screen items-center justify-center bg-frame px-4">
+      <form
+        className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError("");
+          try {
+            await login(pin);
+            await reconnect();
+          } catch (err) {
+            setError((err as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
       >
-        Go home
-      </Link>
+        <Wordmark name={settings.company.name} light={false} small="Quotations & invoices" />
+        <h1 className="mt-6 flex items-center gap-2 text-lg font-semibold">
+          <Lock className="h-4 w-4" /> Enter your PIN
+        </h1>
+        <Input className="mt-4 text-center text-lg tracking-[0.5em]" type="password" inputMode="numeric" autoFocus value={pin} onChange={(e) => setPin(e.target.value)} aria-label="PIN" />
+        {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+        <Button type="submit" variant="primary" className="mt-4 w-full" loading={busy}>
+          Unlock
+        </Button>
+      </form>
     </div>
+  );
+}
+
+function NewDoc() {
+  const { type } = useParams();
+  if (!["quotation", "invoice", "letter"].includes(type || "")) return <Navigate to="/" replace />;
+  return <Editor key={`new-${type}`} newType={type as DocType} />;
+}
+
+function EditDoc() {
+  const { id } = useParams();
+  return <Editor key={id} id={id} />;
+}
+
+function Routed() {
+  const { ready, needsPin } = useApp();
+  if (!ready) return <Loading />;
+  if (needsPin) return <PinGate />;
+  return (
+    <Suspense fallback={<Loading />}>
+      <Routes>
+        <Route path="/new/:type" element={<NewDoc />} />
+        <Route path="/doc/:id" element={<EditDoc />} />
+        <Route
+          path="*"
+          element={
+            <AppShell>
+              <Suspense fallback={<Loading />}>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/quotations" element={<DocumentsList type="quotation" />} />
+                  <Route path="/invoices" element={<DocumentsList type="invoice" />} />
+                  <Route path="/letters" element={<DocumentsList type="letter" />} />
+                  <Route path="/customers" element={<Customers />} />
+                  <Route path="/items" element={<Catalog />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  {/* links from the previous version */}
+                  <Route path="/quotation/new" element={<Navigate to="/new/quotation" replace />} />
+                  <Route path="/invoice/new" element={<Navigate to="/new/invoice" replace />} />
+                  <Route path="/document/new" element={<Navigate to="/new/letter" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+            </AppShell>
+          }
+        />
+      </Routes>
+    </Suspense>
   );
 }
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <HashRouter>
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/quotation/new" element={<NewQuotationPage />} />
-            <Route path="/invoice/new" element={<NewInvoicePage />} />
-            <Route path="/document/new" element={<NewDocumentPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </HashRouter>
+      <AppProvider>
+        <HashRouter>
+          <Routed />
+        </HashRouter>
+      </AppProvider>
     </ErrorBoundary>
   );
 }

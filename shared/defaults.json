@@ -1,0 +1,68 @@
+{
+  "company": {
+    "name": "SYNNEX TECHNOLOGY",
+    "tagline": "Electrical & Network Solutions",
+    "addressLine1": "M.P.C.S Lane, Kopay North,",
+    "addressLine2": "Kopay, Sri Lanka",
+    "phone": "021 223 1455",
+    "mobile": "077 758 8128",
+    "email": "vkarull@gmail.com",
+    "website": "",
+    "registrationNo": "",
+    "logo": ""
+  },
+  "signatory": {
+    "name": "K. Arulalagan",
+    "title": "MIET-UK",
+    "closing": "Thanking you.\nYours faithfully,"
+  },
+  "bank": {
+    "accountName": "Synnex Technology",
+    "bankName": "",
+    "branch": "",
+    "accountNo": ""
+  },
+  "brand": {
+    "primary": "#3F3F3F",
+    "accent": "#D9D9D9",
+    "zebra": false,
+    "font": "Source Sans 3",
+    "layout": "simple"
+  },
+  "numbering": {
+    "quotationPrefix": "SX-Q",
+    "invoicePrefix": "SX-INV",
+    "letterPrefix": "SX-L",
+    "includeYear": true,
+    "padding": 3
+  },
+  "defaults": {
+    "currency": "Rs",
+    "taxLabel": "VAT",
+    "taxPercent": 0,
+    "quotationValidDays": 30,
+    "invoiceDueDays": 14,
+    "dateFormat": "DD/MM/YYYY",
+    "pageSize": "A4",
+    "units": [
+      "Nos.",
+      "Set",
+      "Mtr.",
+      "Ft.",
+      "Lot",
+      "Roll",
+      "Pair",
+      "Job"
+    ],
+    "quotationTerms": [
+      "This quotation is not a contract or a bill. It is our best estimate of the total price for the work and materials described above.",
+      "Prices are valid until the date shown above. A 50% advance confirms the order; the balance is due on completion.",
+      "Warranty: 12 months on workmanship. Manufacturer warranty applies to materials."
+    ],
+    "invoiceTerms": [
+      "Please make payment within 14 days of the invoice date.",
+      "Cheques should be drawn in favour of Synnex Technology."
+    ],
+    "thankYouNote": "Thank you for your business!"
+  }
+}
