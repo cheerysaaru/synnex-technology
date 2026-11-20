@@ -1,21 +1,24 @@
 {
   "name": "synnex-technology",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"node --watch server/index.mjs\" \"vite\"",
+    "dev:web": "vite",
+    "dev:api": "node --watch server/index.mjs",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "node server.mjs",
+    "start": "node server.mjs",
     "server": "node server.mjs",
-    "start": "node server.mjs"
+    "preview": "npm run build && node server.mjs",
+    "test": "node --test test/api.test.mjs",
+    "lint": "oxlint"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
-    "@supabase/supabase-js": "^2.110.8",
     "@tailwindcss/vite": "^4.3.3",
     "lucide-react": "^1.25.0",
+    "pdfjs-dist": "^5.7.284",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
@@ -26,8 +29,13 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "concurrently": "^9.2.1",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
+  },
+  "description": "Synnex Technology — quotations, invoices and letters with a built-in API server.",
+  "engines": {
+    "node": ">=22.5"
   }
 }
