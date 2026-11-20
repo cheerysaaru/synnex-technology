@@ -140,6 +140,8 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
     return parseRich(v).flatMap((line, li) => [li ? <Text key={`n${runKey++}`}>{"\n"}</Text> : null, ...line.map((r) => <Text key={`r${runKey++}`} style={runStyle(r)}>{r.text}</Text>)]).filter((x) => x !== null);
   };
   const filled = (v: string) => plainText(v).trim().length > 0;
+  /* Money, or blank when it is zero (nothing priced yet). */
+  const mz = (n: number) => (n ? money(n) : "");
   s.td = { ...s.td, fontSize: TX.table.size, ...(TX.table.color ? { color: TX.table.color } : {}) };
   const fill = { backgroundColor: FILL };
   /* Heading text for a section, or null when the user hid it. */
@@ -350,14 +352,14 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
 
   /* Plain right-aligned totals list. */
   const SimpleTotals = () => {
-    const rows: { label: string; value: string; strong?: boolean }[] = [{ label: "Subtotal", value: money(totals.subtotal) }];
+    const rows: { label: string; value: string; strong?: boolean }[] = [{ label: "Subtotal", value: mz(totals.subtotal) }];
     if (totals.discount > 0) rows.push({ label: data.discount.mode === "percent" ? `Discount (${data.discount.value}%)` : "Discount", value: `(${money(totals.discount)})` });
-    if (totals.tax > 0 || data.type === "invoice") rows.push({ label: `${data.tax.label || "Tax"} (${data.tax.percent || 0}%)`, value: totals.tax > 0 ? money(totals.tax) : "-" });
+    if (totals.tax > 0 || data.type === "invoice") rows.push({ label: `${data.tax.label || "Tax"} (${data.tax.percent || 0}%)`, value: mz(totals.tax) });
     const totalLabel = (data.grandTotalLabel || "Total").trim();
-    rows.push({ label: totalLabel === totalLabel.toUpperCase() ? totalLabel.charAt(0) + totalLabel.slice(1).toLowerCase() : totalLabel, value: `${cur} ${money(totals.total)}`, strong: true });
+    rows.push({ label: totalLabel === totalLabel.toUpperCase() ? totalLabel.charAt(0) + totalLabel.slice(1).toLowerCase() : totalLabel, value: totals.total ? `${cur} ${money(totals.total)}` : "", strong: true });
     if (data.type === "invoice") {
-      rows.push({ label: "Payments / credits", value: totals.paid > 0 ? money(totals.paid) : "-" });
-      rows.push({ label: "Balance due", value: `${cur} ${money(totals.balance)}`, strong: true });
+      rows.push({ label: "Payments / credits", value: mz(totals.paid) });
+      rows.push({ label: "Balance due", value: totals.balance ? `${cur} ${money(totals.balance)}` : "", strong: true });
     }
     return (
       <View style={{ alignSelf: "flex-end", width: "48%", marginBottom: 12 }} wrap={false}>
@@ -446,14 +448,14 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
 
   /* --- totals */
   const Totals = ({ attached }: { attached: boolean }) => {
-    const rows: { label: string; value: string; total?: boolean }[] = [{ label: "SUBTOTAL", value: money(totals.subtotal) }];
+    const rows: { label: string; value: string; total?: boolean }[] = [{ label: "SUBTOTAL", value: mz(totals.subtotal) }];
     if (totals.discount > 0) rows.push({ label: data.discount.mode === "percent" ? `DISCOUNT (${data.discount.value}%)` : "DISCOUNT", value: `(${money(totals.discount)})` });
     if (totals.tax > 0) rows.push({ label: `${(data.tax.label || "Tax").toUpperCase()} (${data.tax.percent}%)`, value: money(totals.tax) });
-    if (totals.discount === 0 && totals.tax === 0) rows.push({ label: "OTHER", value: "-" });
-    rows.push({ label: (data.grandTotalLabel || "TOTAL").toUpperCase(), value: money(totals.total), total: true });
+    if (totals.discount === 0 && totals.tax === 0) rows.push({ label: "OTHER", value: "" });
+    rows.push({ label: (data.grandTotalLabel || "TOTAL").toUpperCase(), value: mz(totals.total), total: true });
     if (totals.paid > 0) {
       rows.push({ label: "PAID", value: `(${money(totals.paid)})` });
-      rows.push({ label: "BALANCE DUE", value: money(totals.balance), total: true });
+      rows.push({ label: "BALANCE DUE", value: mz(totals.balance), total: true });
     }
     const leftW = 100 - widths.amount - widths.rate - widths.qty - widths.discount;
     const rightW = 100 - leftW;
@@ -466,7 +468,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
           {rows.map((r, i) => (
             <View key={r.label + i} style={[{ flexDirection: "row", borderWidth: 0.75, borderColor: RULE, borderTopWidth: attached || i > 0 ? 0 : 0.75, borderLeftWidth: attached ? 0 : 0.75 }, r.total ? fill : {}]}>
               <Text style={[s.totLabel, F(r.total ? "grandTotal" : "totals"), fs(r.total ? "grandTotal" : "totals"), { flex: 1, fontSize: r.total ? Math.max(TX.totals.size, TX.grandTotal.size - 1.2) : TX.totals.size }]}>{r.label}</Text>
-              {r.total ? <Text style={[s.totValue, T.regular, { width: 26, textAlign: "left", paddingHorizontal: 0 }]}>{cur}</Text> : null}
+              {r.total ? <Text style={[s.totValue, T.regular, { width: 26, textAlign: "left", paddingHorizontal: 0 }]}>{r.value ? cur : ""}</Text> : null}
               <Text style={[s.totValue, r.total ? F("grandTotal") : T.regular, fs(r.total ? "grandTotal" : "totals"), { width: `${(widths.amount / rightW) * 100}%`, fontSize: r.total ? TX.grandTotal.size : TX.totals.size + 0.8 }]}>{r.value}</Text>
             </View>
           ))}
