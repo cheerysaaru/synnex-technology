@@ -37,6 +37,8 @@ function deepMerge(base, over) {
   for (const [k, v] of Object.entries(over)) out[k] = isObj(v) && isObj(base[k]) ? deepMerge(base[k], v) : v;
   return out;
 }
+/* Formatted text (<r ...>words</r>) without the formatting, for lists and search. */
+const plain = (v) => !/<r[\s>]/.test(String(v || '')) ? String(v || '') : String(v).replace(/<r(?:\s[^>]*)?>|<\/r>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 const created = (body) => ({ __created: true, body });
 const str = (v, max = 500) => (v == null ? '' : String(v).slice(0, max));
 const now = () => new Date().toISOString();
@@ -103,7 +105,7 @@ export async function createApp({ dataDir = path.join(ROOT, 'data'), staticDir =
       number: str(clean.number, 60),
       status: st,
       customer_name: str(clean.customer?.name, 200),
-      subject: str(clean.subject, 300),
+      subject: str(plain(clean.subject), 300),
       issue_date: str(clean.issueDate, 10),
       total: totals.total,
       balance: totals.balance,

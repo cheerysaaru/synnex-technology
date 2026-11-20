@@ -3,6 +3,7 @@
  * reachable — e.g. the static GitHub Pages build — it falls back to a
  * browser-only store with the same behaviour, so the app always works.
  */
+import { plainText } from "./rich";
 import defaults from "../../shared/defaults.json";
 import type { CatalogItem, Customer, DocData, DocRecord, DocSummary, DocType, Settings, Stats } from "../types";
 import { addDays, computeTotals, todayIso } from "./calc";
@@ -173,7 +174,7 @@ function localBackend(): Backend {
       number: data.number || "",
       status: s,
       customer_name: data.customer?.name || "",
-      subject: data.subject || "",
+      subject: plainText(data.subject),
       issue_date: data.issueDate || "",
       total: totals.total,
       balance: totals.balance,

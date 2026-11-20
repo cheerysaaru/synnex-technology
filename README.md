@@ -41,6 +41,8 @@ Two layouts, chosen in **Settings → Document style**:
 
 **Text size & bold**: inside each quotation, invoice or letter, open the "Text size & bold" card at the top of the editor (or press **Text size** in the top bar). Set the size (pt) and weight (Light, Regular, Semi-bold, Bold) of the company name, title, body text, customer name, labels, section headings, table header, table rows, totals, grand total and footer, and watch the preview. "Use for all documents" makes the current sizes the default.
 
+**Word-style formatting**: in item descriptions, group headings, the description of work, work details, notes, custom sections, closing lines and the note beside the totals, select any words and use the toolbar that appears above the box: **Bold**, *Italic*, Underline, size (8–24 pt), colour (8 quick colours or any colour), or clear formatting. Ctrl+B / Ctrl+I / Ctrl+U work too. The PDF prints exactly what you see. Formatting is stored inside the text as `<r b i u c="#C00000" s="12">words</r>`; plain text is unchanged.
+
 **Boxed**, a classic business form:
 
 - Company details top-left (with your logo if uploaded); a large title and a boxed number/date grid top-right.
