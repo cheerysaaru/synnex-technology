@@ -37,6 +37,8 @@ function deepMerge(base, over) {
   for (const [k, v] of Object.entries(over)) out[k] = isObj(v) && isObj(base[k]) ? deepMerge(base[k], v) : v;
   return out;
 }
+/* Formatted text (<r ...>words</r>) without the formatting, for lists and search. */
+const plain = (v) => !/<r[\s>]/.test(String(v || '')) ? String(v || '') : String(v).replace(/<r(?:\s[^>]*)?>|<\/r>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 const created = (body) => ({ __created: true, body });
 const str = (v, max = 500) => (v == null ? '' : String(v).slice(0, max));
 const now = () => new Date().toISOString();
@@ -47,7 +49,10 @@ const addDays = (iso, days) => {
   return d.toISOString().slice(0, 10);
 };
 
-export async function createApp({ dataDir = path.join(ROOT, 'data'), staticDir = path.join(ROOT, 'dist'), accessPin = process.env.ACCESS_PIN || '', corsOrigin = process.env.CORS_ORIGIN || '' } = {}) {
+export async function createApp({ dataDir = process.env.DATA_DIR || path.join(ROOT, 'data'), staticDir = path.join(ROOT, 'dist'), accessPin = process.env.ACCESS_PIN || '', corsOrigin = process.env.CORS_ORIGIN || '', basePath = process.env.BASE_PATH || '' } = {}) {
+  /* Served under a sub-folder, e.g. BASE_PATH=/quotation for
+     synnex-technology.com/quotation/. Requests may arrive with or without it. */
+  const base = ('/' + basePath.replace(/^\/+|\/+$/g, '')).replace(/^\/$/, '');
   const store = await openStore(dataDir);
 
   /* ----------------------------------------------------------- settings */
@@ -103,7 +108,7 @@ export async function createApp({ dataDir = path.join(ROOT, 'data'), staticDir =
       number: str(clean.number, 60),
       status: st,
       customer_name: str(clean.customer?.name, 200),
-      subject: str(clean.subject, 300),
+      subject: str(plain(clean.subject), 300),
       issue_date: str(clean.issueDate, 10),
       total: totals.total,
       balance: totals.balance,
@@ -409,6 +414,14 @@ export async function createApp({ dataDir = path.join(ROOT, 'data'), staticDir =
 
   const handler = async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
+    if (base) {
+      // "/quotation" → "/quotation/" so the page's relative links resolve.
+      if (url.pathname === base) {
+        res.writeHead(301, { Location: base + '/' + url.search });
+        return res.end();
+      }
+      if (url.pathname.startsWith(base + '/')) url.pathname = url.pathname.slice(base.length);
+    }
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
     if (corsOrigin) {

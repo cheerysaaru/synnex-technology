@@ -6,9 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowDown, ArrowLeft, ArrowRightLeft, ArrowUp, BookmarkPlus, Check, ChevronDown, Columns3, Copy, Eye, EyeOff, FileDown,
-  Heading, ListPlus, Loader2, Monitor, PenLine, Plus, Printer, RotateCcw, Trash2, Type, UserPlus,
+  Heading, ListPlus, Loader2, Monitor, PenLine, Plus, Printer, Redo2, RotateCcw, Trash2, Type, Undo2, UserPlus,
 } from "lucide-react";
-import { Button, ConfirmDelete, Field, IconButton, Input, Modal, NumberInput, Select, Spinner, Textarea, Toggle, cx } from "../components/ui";
+import { Button, ConfirmDelete, Field, IconButton, Input, Modal, NumberInput, Select, Spinner, Toggle, cx } from "../components/ui";
 import { backend, ApiError } from "../lib/api";
 import { useApp } from "../lib/app";
 import { amountInWords, computeTotals, lineAmount, money } from "../lib/calc";
@@ -16,6 +16,8 @@ import { SECTION_INFO, STATUSES, defaultHeading, TYPE_LABEL, TYPE_PLURAL, emptyC
 import { downloadPdf, printPdf, renderPdf } from "../lib/pdf";
 import { PdfPages } from "../components/PdfPages";
 import { TextControls } from "../components/TextControls";
+import { RichInput } from "../components/RichInput";
+import { plainText } from "../lib/rich";
 import { TEXT_ROLES, applyOverrides, layoutDefaults, resolveText, withColors, type TextOverrides, type TextStyle } from "../lib/typography";
 import type { CatalogItem, Customer, DocData, DocType, LineItem, Section, SectionType } from "../types";
 
@@ -121,10 +123,64 @@ export default function Editor({ id, newType }: { id?: string; newType?: DocType
     };
   }, [persist, save]);
 
+  /* ---------------------------------------------------------------- undo / redo
+     Every change keeps the version before it. Typing in a burst counts as one
+     step, so Undo takes back a whole word or phrase, not one letter. */
+  const past = useRef<DocData[]>([]);
+  const future = useRef<DocData[]>([]);
+  const lastStep = useRef(0);
+  const [, setHistoryTick] = useState(0);
+
   const update = useCallback((patch: Partial<DocData> | ((d: DocData) => Partial<DocData>)) => {
+    const cur = docRef.current;
+    if (cur) {
+      const now = Date.now();
+      if (now - lastStep.current > 800 || !past.current.length) {
+        past.current.push(cur);
+        if (past.current.length > 150) past.current.shift();
+      }
+      lastStep.current = now;
+      future.current = [];
+      setHistoryTick((n) => n + 1);
+    }
     setDoc((d) => (d ? { ...d, ...(typeof patch === "function" ? patch(d) : patch) } : d));
     setSave("dirty");
   }, []);
+
+  const undo = useCallback(() => {
+    const prev = past.current.pop();
+    if (!prev || !docRef.current) return;
+    future.current.push(docRef.current);
+    lastStep.current = 0;
+    setDoc(prev);
+    setSave("dirty");
+    setHistoryTick((n) => n + 1);
+  }, []);
+  const redo = useCallback(() => {
+    const next = future.current.pop();
+    if (!next || !docRef.current) return;
+    past.current.push(docRef.current);
+    lastStep.current = 0;
+    setDoc(next);
+    setSave("dirty");
+    setHistoryTick((n) => n + 1);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (k === "y" || (k === "z" && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
 
   const changeStatus = (s: string) => {
     setStatus(s);
@@ -217,6 +273,15 @@ export default function Editor({ id, newType }: { id?: string; newType?: DocType
           ))}
         </div>
 
+        <SaveButton state={save} onSave={() => persist()} />
+        <div className="flex items-center rounded-full border border-line p-0.5" role="group" aria-label="Undo and redo">
+          <button type="button" onClick={undo} disabled={!past.current.length} className="flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-semibold text-ink hover:bg-panel disabled:opacity-30 disabled:hover:bg-transparent" title="Undo (Ctrl+Z)" aria-label="Undo">
+            <Undo2 className="h-4 w-4" /> <span className="hidden 2xl:inline">Undo</span>
+          </button>
+          <button type="button" onClick={redo} disabled={!future.current.length} className="flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-semibold text-ink hover:bg-panel disabled:opacity-30 disabled:hover:bg-transparent" title="Redo (Ctrl+Y)" aria-label="Redo">
+            <Redo2 className="h-4 w-4" /> <span className="hidden 2xl:inline">Redo</span>
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -300,6 +365,8 @@ export default function Editor({ id, newType }: { id?: string; newType?: DocType
                 onToggle={() => toggleSection(sec.id)}
                 onRemove={sec.type === "custom" ? () => removeSection(sec.id) : undefined}
                 summary={sectionSummary(sec, doc, totals.total, settings.defaults.currency)}
+                saveState={save}
+                onSave={() => persist()}
               >
                 <HeadingControl section={sec} docType={doc.type} onChange={(p) => patchSection(sec.id, p)} />
                 <SectionBody
@@ -341,6 +408,28 @@ export default function Editor({ id, newType }: { id?: string; newType?: DocType
 }
 
 /* ================================================================ pieces */
+
+/* Save now. Lights up when there are unsaved changes; changes also save on their own after a moment. */
+function SaveButton({ state, onSave, compact }: { state: SaveState; onSave: () => void; compact?: boolean }) {
+  const pending = state === "dirty" || state === "error" || state === "idle";
+  const saving = state === "saving";
+  return (
+    <button
+      type="button"
+      onClick={onSave}
+      disabled={saving || state === "saved"}
+      title="Save (Ctrl+S)"
+      className={cx(
+        "inline-flex items-center gap-1.5 rounded-full font-semibold transition",
+        compact ? "h-8 px-3 text-[12px]" : "h-9 px-3.5 text-[13px]",
+        pending ? "bg-signal text-white hover:bg-signal/90" : "border border-line text-mute",
+      )}
+    >
+      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+      {saving ? "Saving…" : state === "saved" ? "Saved" : "Save"}
+    </button>
+  );
+}
 
 function SaveIndicator({ state }: { state: SaveState }) {
   const map: Record<SaveState, ReactNode> = {
@@ -431,9 +520,9 @@ function sectionSummary(sec: Section, d: DocData, total: number, cur: string): s
   switch (sec.type) {
     case "details": return [d.title, d.number, d.issueDate].filter(Boolean).join(" · ");
     case "recipient": return d.customer.name || "No customer yet";
-    case "salutation": return d.salutation;
-    case "subject": return d.subject;
-    case "intro": return d.intro.slice(0, 80);
+    case "salutation": return plainText(d.salutation);
+    case "subject": return plainText(d.subject);
+    case "intro": return plainText(d.intro).slice(0, 80);
     case "items": {
       const n = d.items.filter((i) => i.kind === "item").length;
       return `${n} item${n === 1 ? "" : "s"}`;
@@ -447,9 +536,9 @@ function sectionSummary(sec: Section, d: DocData, total: number, cur: string): s
 }
 
 function SectionCard({
-  section, first, last, onUp, onDown, onToggle, onRemove, summary, children,
+  section, first, last, onUp, onDown, onToggle, onRemove, summary, children, saveState, onSave,
 }: {
-  section: Section; first: boolean; last: boolean; onUp: () => void; onDown: () => void; onToggle: () => void; onRemove?: () => void; summary: string; children: ReactNode;
+  section: Section; first: boolean; last: boolean; onUp: () => void; onDown: () => void; onToggle: () => void; onRemove?: () => void; summary: string; children: ReactNode; saveState: SaveState; onSave: () => void;
 }) {
   const info = SECTION_INFO[section.type];
   const [collapsed, setCollapsed] = useState(false);
@@ -471,8 +560,57 @@ function SectionCard({
           {onRemove ? <ConfirmDelete iconOnly label="Delete section" onConfirm={onRemove} /> : null}
         </div>
       </header>
-      {open ? <div className="border-t border-line-2 px-4 py-4">{children}</div> : null}
+      {open ? (
+        <div className="border-t border-line-2 px-4 py-4">
+          {children}
+          <div className="mt-4 flex items-center justify-end gap-2 border-t border-line-2 pt-3">
+            <span className="text-[11px] text-mute">{saveState === "saved" ? "All changes saved" : saveState === "error" ? "Not saved — check connection" : saveState === "saving" ? "" : "Saves automatically, or press Save"}</span>
+            <SaveButton state={saveState} onSave={onSave} compact />
+          </div>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+/* ================================================================ title */
+
+const TITLE_SUGGESTIONS: Record<DocType, string[]> = {
+  quotation: ["QUOTATION", "PRICE QUOTATION", "ESTIMATE", "PROFORMA INVOICE"],
+  invoice: ["INVOICE", "TAX INVOICE", "PROFORMA INVOICE", "RECEIPT"],
+  letter: [],
+};
+
+/* The document title (QUOTATION, INVOICE…): wording, capitals and position. */
+function TitleEditor({ doc, update, compact }: { doc: DocData; update: (p: Partial<DocData>) => void; compact?: boolean }) {
+  const tCase = doc.titleCase || (doc.titleCaps === false ? "typed" : "upper");
+  const hasTable = doc.type !== "letter";
+  return (
+    <div className="space-y-2.5">
+      <Field label={compact ? "Title above the table" : "Title on the document"} hint="Type any title, or leave empty to hide it">
+        {(id) => <Input id={id} value={doc.title} placeholder="e.g. QUOTATION" onChange={(e) => update({ title: e.target.value })} />}
+      </Field>
+      {TITLE_SUGGESTIONS[doc.type].length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {TITLE_SUGGESTIONS[doc.type].map((t) => (
+            <button key={t} type="button" onClick={() => update({ title: t })} aria-pressed={doc.title === t} className={cx("h-7 rounded-full border px-2.5 text-[12px]", doc.title === t ? "border-ink bg-ink text-white" : "border-line bg-white text-ink hover:border-ink/30")}>
+              {t}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-end gap-4">
+        <Segmented label="Letters" value={tCase} options={[["upper", "ALL CAPS"], ["lower", "all small"], ["title", "Mixed"], ["typed", "As typed"]]} onChange={(v) => update({ titleCase: v as DocData["titleCase"], titleCaps: undefined })} />
+        {hasTable ? (
+          <Segmented
+            label="Where it prints"
+            value={doc.titlePlace === "top" ? "top" : "table"}
+            options={[["table", "Above the table"], ["top", "At the top, under the date"]]}
+            onChange={(v) => update({ titlePlace: v as "table" | "top" })}
+          />
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -622,17 +760,7 @@ function SectionBody(p: BodyProps) {
     const dueLabel = doc.type === "quotation" ? "Valid until" : doc.type === "invoice" ? "Due date" : "";
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Title on the document" hint="Leave empty to hide">{(id) => <Input id={id} value={doc.title} onChange={(e) => update({ title: e.target.value })} />}</Field>
-        {doc.type !== "letter" ? (
-          <div className="sm:order-last sm:col-span-2">
-            <Segmented
-              label="Where the title prints"
-              value={doc.titlePlace === "top" ? "top" : "table"}
-              options={[["table", "Above the table"], ["top", "At the top, under the date"]]}
-              onChange={(v) => update({ titlePlace: v as "table" | "top" })}
-            />
-          </div>
-        ) : null}
+        <div className="sm:order-last sm:col-span-2"><TitleEditor doc={doc} update={update} /></div>
         <Field label={`${TYPE_LABEL[doc.type]} number`} hint={doc.number ? undefined : "Given automatically when first saved"}>{(id) => <Input id={id} value={doc.number} placeholder="Automatic" onChange={(e) => update({ number: e.target.value })} />}</Field>
         <Field label="Date">{(id) => <Input id={id} type="date" value={doc.issueDate} onChange={(e) => update({ issueDate: e.target.value })} />}</Field>
         {dueLabel ? <Field label={dueLabel} optional>{(id) => <Input id={id} type="date" value={doc.dueDate} onChange={(e) => update({ dueDate: e.target.value })} />}</Field> : null}
@@ -646,7 +774,7 @@ function SectionBody(p: BodyProps) {
   if (t === "salutation") {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <Input value={doc.salutation} onChange={(e) => update({ salutation: e.target.value })} className="max-w-xs" aria-label="Salutation" />
+        <RichInput value={doc.salutation} onChange={(v) => update({ salutation: v })} className="max-w-xs" ariaLabel="Salutation" />
         {["Dear Sir,", "Dear Madam,", "Dear Sir / Madam,", "Sir,"].map((x) => (
           <button key={x} type="button" onClick={() => update({ salutation: x })} className="h-8 rounded-full border border-line px-3 text-[13px] hover:border-navy/50">{x}</button>
         ))}
@@ -655,11 +783,11 @@ function SectionBody(p: BodyProps) {
   }
 
   if (t === "subject") {
-    return <Input value={doc.subject} onChange={(e) => update({ subject: e.target.value })} placeholder={doc.type === "letter" ? "Subject of the letter" : "Supply and installation of surge power points and network points"} aria-label="Description of work" />;
+    return <RichInput value={doc.subject} onChange={(v) => update({ subject: v })} placeholder={doc.type === "letter" ? "Subject of the letter" : "Supply and installation of surge power points and network points"} ariaLabel="Description of work" />;
   }
 
   if (t === "intro") {
-    return <Textarea rows={3} value={doc.intro} onChange={(e) => update({ intro: e.target.value })} placeholder={doc.type === "letter" ? "Write the letter here…" : "Scope, location, timing — printed inside the Description of Work box"} aria-label={doc.type === "letter" ? "Letter text" : "Work details"} />;
+    return <RichInput multiline minRows={3} value={doc.intro} onChange={(v) => update({ intro: v })} placeholder={doc.type === "letter" ? "Write the letter here…" : "Scope, location, timing — printed inside the Description of Work box"} ariaLabel={doc.type === "letter" ? "Letter text" : "Work details"} />;
   }
 
   if (t === "items") return <ItemsEditor {...p} />;
@@ -676,7 +804,7 @@ function SectionBody(p: BodyProps) {
     return (
       <div className="space-y-3">
         <Field label="Heading" optional>{(id) => <Input id={id} value={section.title || ""} onChange={(e) => p.patchSection({ title: e.target.value })} placeholder="e.g. Scope of work, Warranty, Delivery" />}</Field>
-        <Field label="Text">{(id) => <Textarea id={id} rows={4} value={section.text || ""} onChange={(e) => p.patchSection({ text: e.target.value })} />}</Field>
+        <Field label="Text">{() => <RichInput multiline minRows={4} value={section.text || ""} onChange={(v) => p.patchSection({ text: v })} ariaLabel="Section text" />}</Field>
       </div>
     );
   }
@@ -684,7 +812,7 @@ function SectionBody(p: BodyProps) {
   if (t === "closing") {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Closing lines" className="sm:col-span-2">{(id) => <Textarea id={id} rows={2} value={doc.closing} onChange={(e) => update({ closing: e.target.value })} />}</Field>
+        <Field label="Closing lines" className="sm:col-span-2">{() => <RichInput multiline minRows={2} value={doc.closing} onChange={(v) => update({ closing: v })} ariaLabel="Closing lines" />}</Field>
         <Field label="Signatory name">{(id) => <Input id={id} value={doc.signatoryName} onChange={(e) => update({ signatoryName: e.target.value })} />}</Field>
         <Field label="Title / qualification" optional>{(id) => <Input id={id} value={doc.signatoryTitle} onChange={(e) => update({ signatoryTitle: e.target.value })} />}</Field>
         <div className="sm:col-span-2"><Toggle checked={doc.showSignatureLine} onChange={(v) => update({ showSignatureLine: v })} label="Signature line" description="A line to sign above the name." /></div>
@@ -777,7 +905,7 @@ function ItemsEditor({ doc, update, catalog, setCatalog }: BodyProps) {
   };
   const saveToCatalog = async (it: LineItem) => {
     try {
-      const row = await backend().saveCatalog({ description: it.description, unit: it.unit, rate: it.rate });
+      const row = await backend().saveCatalog({ description: plainText(it.description), unit: it.unit, rate: it.rate });
       setCatalog([...catalog, row]);
       toast("Saved to Items & rates.");
     } catch (e) {
@@ -788,6 +916,7 @@ function ItemsEditor({ doc, update, catalog, setCatalog }: BodyProps) {
   let n = 0;
   return (
     <div className="space-y-3">
+      {doc.titlePlace !== "top" ? <div className="rounded-2xl bg-panel p-3"><TitleEditor doc={doc} update={update} compact /></div> : null}
       <div className="space-y-2">
         {doc.items.length === 0 ? <p className="text-sm text-mute">No rows yet.</p> : null}
         {doc.items.map((it, idx) => {
@@ -795,7 +924,7 @@ function ItemsEditor({ doc, update, catalog, setCatalog }: BodyProps) {
             return (
               <div key={it.id} className="flex items-center gap-2 rounded-xl bg-panel px-2 py-1.5">
                 <Heading className="h-4 w-4 shrink-0 text-signal" />
-                <input value={it.description} onChange={(e) => patch(it.id, { description: e.target.value })} placeholder="Group heading, e.g. Electrical works" className="h-8 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" aria-label="Group heading" />
+                <RichInput value={it.description} onChange={(v) => patch(it.id, { description: v })} placeholder="Group heading, e.g. Electrical works" className="min-w-0 flex-1" textClassName="min-h-9 py-1.5 font-semibold" ariaLabel="Group heading" />
                 <RowActions idx={idx} count={doc.items.length} onMove={move} onCopy={() => setItems((items) => [...items.slice(0, idx + 1), { ...it, id: uid() }, ...items.slice(idx + 1)])} onDelete={() => setItems((items) => items.filter((x) => x.id !== it.id))} />
               </div>
             );
@@ -813,7 +942,7 @@ function ItemsEditor({ doc, update, catalog, setCatalog }: BodyProps) {
                   onMove={move}
                   onCopy={() => setItems((items) => [...items.slice(0, idx + 1), { ...it, id: uid() }, ...items.slice(idx + 1)])}
                   onDelete={() => setItems((items) => items.filter((x) => x.id !== it.id))}
-                  onBookmark={it.description.trim() ? () => saveToCatalog(it) : undefined}
+                  onBookmark={plainText(it.description).trim() ? () => saveToCatalog(it) : undefined}
                 />
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2 pl-7 sm:grid-cols-[repeat(auto-fit,minmax(88px,1fr))]">
@@ -932,13 +1061,13 @@ function RowActions({ idx, count, onMove, onCopy, onDelete, onBookmark }: { idx:
 function DescriptionInput({ value, onChange, onPick, catalog }: { value: string; onChange: (v: string) => void; onPick: (c: CatalogItem) => void; catalog: CatalogItem[] }) {
   const [open, setOpen] = useState(false);
   const matches = useMemo(() => {
-    const q = value.trim().toLowerCase();
+    const q = plainText(value).trim().toLowerCase();
     if (q.length < 2) return [];
-    return catalog.filter((c) => c.description.toLowerCase().includes(q) && c.description !== value).slice(0, 6);
+    return catalog.filter((c) => c.description.toLowerCase().includes(q) && c.description.toLowerCase() !== q).slice(0, 6);
   }, [value, catalog]);
   return (
     <div className="relative min-w-0 flex-1">
-      <Textarea rows={1} value={value} onChange={(e) => { onChange(e.target.value); setOpen(true); }} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder="Item description" aria-label="Item description" className="min-h-9 py-1.5" />
+      <RichInput multiline value={value} onChange={onChange} onTyping={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder="Item description" ariaLabel="Item description" textClassName="min-h-9 py-1.5" />
       {open && matches.length ? (
         <ul className="absolute z-20 mt-1 w-full rounded-lg border border-line bg-white py-1 shadow-xl">
           {matches.map((m) => (
@@ -994,6 +1123,17 @@ function TotalsEditor({ doc, update, totals }: BodyProps) {
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_240px]">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {(settings.brand.layout || "simple") === "simple" ? (
+          <div className="sm:col-span-2">
+            <Segmented
+              label="How totals print"
+              value={doc.totalsStyle === "list" ? "list" : "rows"}
+              options={[["rows", "Rows in the table"], ["list", "Plain list"]]}
+              onChange={(v) => update({ totalsStyle: v as "rows" | "list" })}
+              hint="Rows: Subtotal, Tax and Total as ruled rows under the Amount column"
+            />
+          </div>
+        ) : null}
         <Field label="Discount on the total">
           {(id) => (
             <div className="flex gap-2">
@@ -1020,7 +1160,7 @@ function TotalsEditor({ doc, update, totals }: BodyProps) {
           </Field>
         ) : null}
         <Field label="Total label">{(id) => <Input id={id} value={doc.grandTotalLabel} onChange={(e) => update({ grandTotalLabel: e.target.value })} />}</Field>
-        <Field label="Note beside the totals" optional className="sm:col-span-2">{(id) => <Input id={id} value={doc.thankYouNote} onChange={(e) => update({ thankYouNote: e.target.value })} />}</Field>
+        <Field label="Note beside the totals" optional className="sm:col-span-2">{() => <RichInput value={doc.thankYouNote} onChange={(v) => update({ thankYouNote: v })} ariaLabel="Note beside the totals" />}</Field>
       </div>
       <dl className="space-y-1.5 rounded-2xl bg-ink p-4 text-sm text-white [&_dt]:text-white/60">
         <Row l="Subtotal" v={money(totals.subtotal)} />
@@ -1059,7 +1199,7 @@ function NotesEditor({ doc, update }: BodyProps) {
         {doc.notes.map((note, i) => (
           <li key={i} className="flex items-start gap-2">
             <span className="mt-2.5 w-5 shrink-0 text-right text-xs text-mute">{i + 1}.</span>
-            <Textarea rows={1} value={note} onChange={(e) => setNotes((n) => n.map((x, j) => (j === i ? e.target.value : x)))} className="min-h-9 py-1.5" aria-label={`Note ${i + 1}`} />
+            <RichInput multiline value={note} onChange={(v) => setNotes((n) => n.map((x, j) => (j === i ? v : x)))} className="min-w-0 flex-1" textClassName="min-h-9 py-1.5" ariaLabel={`Note ${i + 1}`} />
             <div className="flex shrink-0">
               <IconButton label="Move up" disabled={i === 0} onClick={() => setNotes((n) => { const x = [...n]; [x[i - 1], x[i]] = [x[i], x[i - 1]]; return x; })}><ArrowUp className="h-3.5 w-3.5" /></IconButton>
               <IconButton label="Delete line" onClick={() => setNotes((n) => n.filter((_, j) => j !== i))} className="hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></IconButton>

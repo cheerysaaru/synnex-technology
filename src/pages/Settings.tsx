@@ -166,7 +166,6 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <ColorField label="Title & company name" value={s.brand.primary} onChange={(v) => set("brand", { primary: v })} />
             <ColorField label="Heading bars" value={s.brand.accent} onChange={(v) => set("brand", { accent: v })} />
-            <div className="flex items-end pb-2"><Toggle checked={s.brand.zebra} onChange={(v) => set("brand", { zebra: v })} label="Striped table rows" /></div>
           </div>
         </Section>
 

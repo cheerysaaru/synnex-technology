@@ -3,6 +3,7 @@
  * reachable — e.g. the static GitHub Pages build — it falls back to a
  * browser-only store with the same behaviour, so the app always works.
  */
+import { plainText } from "./rich";
 import defaults from "../../shared/defaults.json";
 import type { CatalogItem, Customer, DocData, DocRecord, DocSummary, DocType, Settings, Stats } from "../types";
 import { addDays, computeTotals, todayIso } from "./calc";
@@ -51,7 +52,9 @@ export interface Backend {
 
 /* ------------------------------------------------------------------ server */
 const TOKEN_KEY = "synnex_token";
-const BASE = ((import.meta.env.VITE_API_URL as string | undefined) || "").replace(/\/+$/, "");
+/* The API lives next to the app: at /api, or /quotation/api when the app is
+   opened from synnex-technology.com/quotation/. VITE_API_URL overrides it. */
+const BASE = ((import.meta.env.VITE_API_URL as string | undefined) || (typeof location !== "undefined" ? location.pathname.replace(/\/[^/]*$/, "") : "")).replace(/\/+$/, "");
 
 async function http<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -173,7 +176,7 @@ function localBackend(): Backend {
       number: data.number || "",
       status: s,
       customer_name: data.customer?.name || "",
-      subject: data.subject || "",
+      subject: plainText(data.subject),
       issue_date: data.issueDate || "",
       total: totals.total,
       balance: totals.balance,

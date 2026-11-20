@@ -98,6 +98,12 @@ export interface DocData {
   align: TableAlign;
   /** Where the title (QUOTATION, INVOICE) prints: just above the table, or at the top with the date and number. */
   titlePlace?: "table" | "top";
+  /** Print the title in capitals (default) or exactly as typed. */
+  titleCaps?: boolean;
+  /** Totals as ruled rows under the table (default) or a plain list. */
+  totalsStyle?: "rows" | "list";
+  /** Letter case of the title; replaces titleCaps. "typed" prints it exactly as written. */
+  titleCase?: "upper" | "lower" | "title" | "typed";
   /** Text size and weight for this document (only the parts you changed). */
   text?: TextOverrides;
   discount: { mode: "amount" | "percent"; value: number };
