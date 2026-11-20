@@ -1123,6 +1123,17 @@ function TotalsEditor({ doc, update, totals }: BodyProps) {
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_240px]">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {(settings.brand.layout || "simple") === "simple" ? (
+          <div className="sm:col-span-2">
+            <Segmented
+              label="How totals print"
+              value={doc.totalsStyle === "list" ? "list" : "rows"}
+              options={[["rows", "Rows in the table"], ["list", "Plain list"]]}
+              onChange={(v) => update({ totalsStyle: v as "rows" | "list" })}
+              hint="Rows: Subtotal, Tax and Total as ruled rows under the Amount column"
+            />
+          </div>
+        ) : null}
         <Field label="Discount on the total">
           {(id) => (
             <div className="flex gap-2">

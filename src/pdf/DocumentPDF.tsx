@@ -308,7 +308,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   );
 
   /* Full-grid table: every cell ruled, numbered rows, plain header. */
-  const SimpleTable = () => {
+  const SimpleTable = ({ withTotals = false }: { withTotals?: boolean }) => {
     let n = 0;
     /* Every row draws its own box and overlaps the row above by one rule,
        so wherever the table breaks, page 1 ends on a closed line and page 2
@@ -353,12 +353,13 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
             </View>
           );
         })}
+        {withTotals ? <TotalRows /> : null}
       </View>
     );
   };
 
-  /* Plain right-aligned totals list. */
-  const SimpleTotals = () => {
+  /* Subtotal, discount, tax, total (and payments / balance on invoices). */
+  const totalLines = () => {
     const rows: { label: string; value: string; strong?: boolean }[] = [{ label: "Subtotal", value: mz(totals.subtotal) }];
     if (totals.discount > 0) rows.push({ label: data.discount.mode === "percent" ? `Discount (${data.discount.value}%)` : "Discount", value: `(${money(totals.discount)})` });
     if (totals.tax > 0 || data.type === "invoice") rows.push({ label: `${data.tax.label || "Tax"} (${data.tax.percent || 0}%)`, value: mz(totals.tax) });
@@ -368,6 +369,37 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
       rows.push({ label: "Payments / credits", value: mz(totals.paid) });
       rows.push({ label: "Balance due", value: totals.balance ? `${cur} ${money(totals.balance)}` : "", strong: true });
     }
+    return rows;
+  };
+  const totalsAsRows = data.totalsStyle !== "list";
+
+  /* Totals as ruled rows joined to the bottom of the table: label under the
+     number columns, value in the Amount column. */
+  const TotalRows = () => {
+    const numW = widths.unit + widths.qty + widths.rate + widths.discount;
+    const labelW = Math.max(numW, 30);
+    const boxW = labelW + widths.amount;
+    return (
+      <View wrap={false}>
+        {totalLines().map((r) => {
+          const role = r.strong ? "grandTotal" : "totals";
+          return (
+            <View key={r.label} style={{ flexDirection: "row", marginTop: -0.6 }}>
+              <View style={{ width: `${100 - boxW}%` }} />
+              <View style={{ width: `${boxW}%`, flexDirection: "row", borderWidth: 0.6, borderColor: RULE, backgroundColor: "#ffffff" }}>
+                <Text style={[F(role), fs(role), { width: `${(labelW / boxW) * 100}%`, paddingVertical: 3.5, paddingHorizontal: 6, textAlign: "right", borderRightWidth: 0.6, borderRightColor: RULE }]}>{cased(r.label, role)}</Text>
+                <Text style={[F(role), fs(role), { flex: 1, paddingVertical: 3.5, paddingHorizontal: 6, textAlign: "right" }]}>{r.value}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  /* Plain right-aligned totals list. */
+  const SimpleTotals = () => {
+    const rows = totalLines();
     return (
       <View style={{ alignSelf: "flex-end", width: "48%", marginBottom: 12 }} wrap={false}>
         {rows.map((r) => (
@@ -577,12 +609,18 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
       case "items":
         if (itemsOn && SIMPLE) {
           if (titleAtTable) out.push(<TableTitle key={`${sec.id}-title`} />);
-          out.push(<SimpleTable key={sec.id} />);
-          // Amount in words sits under the table, then the totals — like a classic invoice.
           const later: string[] = [];
           for (let j = i + 1; j < seq.length && later.length < 2 && (seq[j].type === "totals" || seq[j].type === "words"); j++) later.push(seq[j].type);
-          if (later.includes("words") && totals.total > 0) out.push(<SimpleWords key={`${sec.id}-w`} />);
-          if (later.includes("totals")) out.push(<SimpleTotals key={`${sec.id}-t`} />);
+          const rowsHere = totalsAsRows && later.includes("totals");
+          // Totals as rows join the table; amount in words follows.
+          out.push(<SimpleTable key={sec.id} withTotals={rowsHere} />);
+          if (rowsHere) {
+            if (later.includes("words") && totals.total > 0) out.push(<SimpleWords key={`${sec.id}-w`} />);
+          } else {
+            // Amount in words under the table, then the totals list — like a classic invoice.
+            if (later.includes("words") && totals.total > 0) out.push(<SimpleWords key={`${sec.id}-w`} />);
+            if (later.includes("totals")) out.push(<SimpleTotals key={`${sec.id}-t`} />);
+          }
           i += later.length;
           break;
         }
