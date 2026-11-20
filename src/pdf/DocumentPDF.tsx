@@ -102,6 +102,9 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   /* "simple": centred letterhead, open layout, full-grid table (default).
      "boxed": company left, info grid right, grey heading bars. */
   const SIMPLE = (settings.brand.layout || "simple") === "simple";
+  const caps = data.titleCaps !== false;
+  const titleText = caps ? (data.title || "").toUpperCase() : data.title || "";
+  const titleSpacing = caps ? 2.5 : 0.3;
   /* Size and weight per part: the saved default, then this document's own. Body
      text scales everything that has no setting of its own. */
   const font = settings.brand.font || "Source Sans 3";
@@ -164,7 +167,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
 
   const Details = () => (
     <View style={{ alignItems: "flex-end" }}>
-      {has(data.title) && !titleAtTable ? <Text style={[s.title, F("title"), fs("title")]}>{data.title.toUpperCase()}</Text> : null}
+      {has(data.title) && !titleAtTable ? <Text style={[s.title, F("title"), fs("title")]}>{titleText}</Text> : null}
       <View style={s.grid}>
         {gridRows.map((row, ri) => (
           <View key={ri}>
@@ -204,7 +207,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
             <Text style={{ fontSize: z(9.2) }}>{has(r[1]) ? <><Text style={[F("labels"), fs("labels")]}>{r[0]}: </Text>{r[1]}</> : " "}</Text>
           </View>
         ))}
-        {has(data.title) && !titleAtTable ? <Text style={[F("title"), fs("title"), { letterSpacing: 2.5, textAlign: "center", marginTop: 10, marginBottom: 4 }]}>{data.title.toUpperCase()}</Text> : null}
+        {has(data.title) && !titleAtTable ? <Text style={[F("title"), fs("title"), { letterSpacing: titleSpacing, textAlign: "center", marginTop: 10, marginBottom: 4 }]}>{titleText}</Text> : null}
       </View>
     );
   };
@@ -243,7 +246,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
      (or there is no table to sit above). */
   const titleAtTable = has(data.title) && data.titlePlace !== "top" && itemsOn;
   const TableTitle = () => (
-    <Text style={[F("title"), fs("title"), { letterSpacing: 2.5, textAlign: "center", marginTop: 4, marginBottom: 8 }]} minPresenceAhead={60}>{data.title.toUpperCase()}</Text>
+    <Text style={[F("title"), fs("title"), { letterSpacing: titleSpacing, textAlign: "center", marginTop: 4, marginBottom: 8 }]} minPresenceAhead={60}>{titleText}</Text>
   );
   const widths: Record<string, number> = { no: SIMPLE ? 6 : 0, unit: cols.unit ? 8 : 0, qty: cols.qty ? 8 : 0, rate: cols.rate ? 15 : 0, discount: cols.discount ? 12 : 0, amount: 17 };
   widths.description = 100 - Object.values(widths).reduce((a, b) => a + b, 0);
@@ -276,11 +279,14 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   /* Full-grid table: every cell ruled, numbered rows, plain header. */
   const SimpleTable = () => {
     let n = 0;
-    const rowRule = { borderTopWidth: 0.6, borderTopColor: RULE };
+    /* Every row draws its own box and overlaps the row above by one rule,
+       so wherever the table breaks, page 1 ends on a closed line and page 2
+       starts with one. */
+    const box = (firstRow?: boolean) => ({ borderWidth: 0.6, borderColor: RULE, marginTop: firstRow ? 0 : -0.6 });
     return (
-      <View style={[s.table, { marginBottom: 8 }]}>
+      <View style={{ marginBottom: 8 }}>
         {secOf("items")?.hideHeading ? null : (
-          <View style={s.tr} minPresenceAhead={30}>
+          <View style={[s.tr, box(true)]} minPresenceAhead={30}>
             {colKeys.map((k, i) => (
               <Text key={k} style={[s.td, F("tableHead"), fs("tableHead"), { width: `${widths[k]}%`, textAlign: "center", paddingVertical: 4 }, i < colKeys.length - 1 ? s.vline : {}]}>{head[k]}</Text>
             ))}
@@ -290,7 +296,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
           const first = idx === 0 && secOf("items")?.hideHeading;
           if (it.kind === "heading") {
             return (
-              <View key={it.id} style={[s.tr, first ? {} : rowRule]} wrap={false}>
+              <View key={it.id} style={[s.tr, box(first)]} wrap={false}>
                 <Text style={[s.td, T.strong, { width: "100%", paddingVertical: 4, textAlign: A.text }]}>{it.description}</Text>
               </View>
             );
@@ -307,7 +313,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
             amount: amt != null ? money(amt) : "",
           };
           return (
-            <View key={it.id} style={[s.tr, first ? {} : rowRule, zebra && n % 2 === 0 ? { backgroundColor: "#f4f4f4" } : {}]} wrap={false}>
+            <View key={it.id} style={[s.tr, box(first), zebra && n % 2 === 0 ? { backgroundColor: "#f4f4f4" } : {}]} wrap={false}>
               {colKeys.map((k, i) => (
                 <Cell key={k} k={k} last={i === colKeys.length - 1}>
                   <Text style={[s.td, F("table"), { textAlign: align(k), paddingVertical: 3 }]}>{cell[k]}</Text>
@@ -352,11 +358,20 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
   );
 
   const ItemsTable = ({ withTotals }: { withTotals: boolean }) => {
+    /* Side rules plus a bottom rule. Each row's white background hides the
+       bottom rule of the row above, so the line only shows under the last row
+       on each page and the table looks closed wherever it breaks. */
+    const headless = Boolean(secOf("items")?.hideHeading);
+    const side = (i: number) => ({
+      borderLeftWidth: 0.6, borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: RULE, backgroundColor: "#ffffff",
+      // Overlap a little more than the rule so no hairline of the hidden rule shows.
+      ...(i === 0 && headless ? { borderTopWidth: 0.6 } : { marginTop: -1 }),
+    });
     const filler = Math.max(0, MIN_ROWS - visibleItems.length);
     return (
       <View style={withTotals ? {} : s.block}>
-        <View style={s.table}>
-          {secOf("items")?.hideHeading ? null : <View style={[s.tr, fill, { borderBottomWidth: 0.6, borderBottomColor: RULE }]} minPresenceAhead={30}>
+        <View>
+          {secOf("items")?.hideHeading ? null : <View style={[s.tr, fill, { borderWidth: 0.6, borderColor: RULE }]} minPresenceAhead={30}>
             {colKeys.map((k, i) => (
               <Text key={k} style={[s.th, F("tableHead"), fs("tableHead"), { width: `${widths[k]}%`, textAlign: k === "description" ? "left" : "center" }, i < colKeys.length - 1 ? s.vline : {}]}>{head[k].toUpperCase()}</Text>
             ))}
@@ -364,7 +379,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
           {visibleItems.map((it, idx) => {
             if (it.kind === "heading") {
               return (
-                <View key={it.id} style={s.tr} wrap={false}>
+                <View key={it.id} style={[s.tr, side(idx)]} wrap={false}>
                   {colKeys.map((k, i) => (
                     <Cell key={k} k={k} last={i === colKeys.length - 1}>
                       <Text style={[s.td, T.strong, { paddingTop: 5, textAlign: k === "description" ? A.text : "left" }]}>{k === "description" ? it.description : ""}</Text>
@@ -383,7 +398,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
               amount: amt != null ? money(amt) : "-",
             };
             return (
-              <View key={it.id} style={[s.tr, zebra && idx % 2 ? { backgroundColor: "#f2f2f2" } : {}]} wrap={false}>
+              <View key={it.id} style={[s.tr, side(idx), zebra && idx % 2 ? { backgroundColor: "#f2f2f2" } : {}]} wrap={false}>
                 {colKeys.map((k, i) => (
                   <Cell key={k} k={k} last={i === colKeys.length - 1}>
                     <Text style={[s.td, F("table"), { textAlign: align(k), paddingLeft: k === "description" && A.text === "left" ? 12 : 6 }]}>{cell[k]}</Text>
@@ -393,7 +408,7 @@ export function DocumentPDF({ data: raw, settings }: { data: DocData; settings: 
             );
           })}
           {Array.from({ length: filler }).map((_, f) => (
-            <View key={`f${f}`} style={s.tr}>
+            <View key={`f${f}`} style={[s.tr, side(visibleItems.length + f)]} wrap={false}>
               {colKeys.map((k, i) => (
                 <Cell key={k} k={k} last={i === colKeys.length - 1}>
                   <Text style={[s.td, { textAlign: k === "amount" ? align("amount") : "left" }]}>{k === "amount" ? "-" : " "}</Text>

@@ -98,6 +98,8 @@ export interface DocData {
   align: TableAlign;
   /** Where the title (QUOTATION, INVOICE) prints: just above the table, or at the top with the date and number. */
   titlePlace?: "table" | "top";
+  /** Print the title in capitals (default) or exactly as typed. */
+  titleCaps?: boolean;
   /** Text size and weight for this document (only the parts you changed). */
   text?: TextOverrides;
   discount: { mode: "amount" | "percent"; value: number };

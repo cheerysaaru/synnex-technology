@@ -476,6 +476,47 @@ function SectionCard({
   );
 }
 
+/* ================================================================ title */
+
+const TITLE_SUGGESTIONS: Record<DocType, string[]> = {
+  quotation: ["QUOTATION", "PRICE QUOTATION", "ESTIMATE", "PROFORMA INVOICE"],
+  invoice: ["INVOICE", "TAX INVOICE", "PROFORMA INVOICE", "RECEIPT"],
+  letter: [],
+};
+
+/* The document title (QUOTATION, INVOICE…): wording, capitals and position. */
+function TitleEditor({ doc, update, compact }: { doc: DocData; update: (p: Partial<DocData>) => void; compact?: boolean }) {
+  const caps = doc.titleCaps !== false;
+  const hasTable = doc.type !== "letter";
+  return (
+    <div className="space-y-2.5">
+      <Field label={compact ? "Title above the table" : "Title on the document"} hint="Type any title, or leave empty to hide it">
+        {(id) => <Input id={id} value={doc.title} placeholder="e.g. QUOTATION" onChange={(e) => update({ title: e.target.value })} />}
+      </Field>
+      {TITLE_SUGGESTIONS[doc.type].length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {TITLE_SUGGESTIONS[doc.type].map((t) => (
+            <button key={t} type="button" onClick={() => update({ title: t })} aria-pressed={doc.title === t} className={cx("h-7 rounded-full border px-2.5 text-[12px]", doc.title === t ? "border-ink bg-ink text-white" : "border-line bg-white text-ink hover:border-ink/30")}>
+              {t}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-end gap-4">
+        <Segmented label="Letters" value={caps ? "caps" : "typed"} options={[["caps", "ALL CAPITALS"], ["typed", "As typed"]]} onChange={(v) => update({ titleCaps: v === "caps" })} />
+        {hasTable ? (
+          <Segmented
+            label="Where it prints"
+            value={doc.titlePlace === "top" ? "top" : "table"}
+            options={[["table", "Above the table"], ["top", "At the top, under the date"]]}
+            onChange={(v) => update({ titlePlace: v as "table" | "top" })}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /* ================================================================ text */
 
 /* Font size and weight, set inside the document. The preview shows each change. */
@@ -622,17 +663,7 @@ function SectionBody(p: BodyProps) {
     const dueLabel = doc.type === "quotation" ? "Valid until" : doc.type === "invoice" ? "Due date" : "";
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Title on the document" hint="Leave empty to hide">{(id) => <Input id={id} value={doc.title} onChange={(e) => update({ title: e.target.value })} />}</Field>
-        {doc.type !== "letter" ? (
-          <div className="sm:order-last sm:col-span-2">
-            <Segmented
-              label="Where the title prints"
-              value={doc.titlePlace === "top" ? "top" : "table"}
-              options={[["table", "Above the table"], ["top", "At the top, under the date"]]}
-              onChange={(v) => update({ titlePlace: v as "table" | "top" })}
-            />
-          </div>
-        ) : null}
+        <div className="sm:order-last sm:col-span-2"><TitleEditor doc={doc} update={update} /></div>
         <Field label={`${TYPE_LABEL[doc.type]} number`} hint={doc.number ? undefined : "Given automatically when first saved"}>{(id) => <Input id={id} value={doc.number} placeholder="Automatic" onChange={(e) => update({ number: e.target.value })} />}</Field>
         <Field label="Date">{(id) => <Input id={id} type="date" value={doc.issueDate} onChange={(e) => update({ issueDate: e.target.value })} />}</Field>
         {dueLabel ? <Field label={dueLabel} optional>{(id) => <Input id={id} type="date" value={doc.dueDate} onChange={(e) => update({ dueDate: e.target.value })} />}</Field> : null}
@@ -788,6 +819,7 @@ function ItemsEditor({ doc, update, catalog, setCatalog }: BodyProps) {
   let n = 0;
   return (
     <div className="space-y-3">
+      {doc.titlePlace !== "top" ? <div className="rounded-2xl bg-panel p-3"><TitleEditor doc={doc} update={update} compact /></div> : null}
       <div className="space-y-2">
         {doc.items.length === 0 ? <p className="text-sm text-mute">No rows yet.</p> : null}
         {doc.items.map((it, idx) => {
