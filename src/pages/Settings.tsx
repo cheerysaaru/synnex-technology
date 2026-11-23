@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Building2, Database, Download, Hash, Landmark, Palette, PenLine, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { Building2, Database, Download, Hash, Landmark, RefreshCw, Palette, PenLine, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import { PageHeader } from "../components/AppShell";
 import { Button, Card, Field, Input, NumberInput, Select, Textarea, Toggle, cx } from "../components/ui";
-import { backend, logout } from "../lib/api";
+import { backend, logout, type UpdateStatus } from "../lib/api";
 import { useApp } from "../lib/app";
 import { todayIso } from "../lib/calc";
 import type { Settings } from "../types";
@@ -166,7 +166,6 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <ColorField label="Title & company name" value={s.brand.primary} onChange={(v) => set("brand", { primary: v })} />
             <ColorField label="Heading bars" value={s.brand.accent} onChange={(v) => set("brand", { accent: v })} />
-            <div className="flex items-end pb-2"><Toggle checked={s.brand.zebra} onChange={(v) => set("brand", { zebra: v })} label="Striped table rows" /></div>
           </div>
         </Section>
 
@@ -231,6 +230,8 @@ export default function SettingsPage() {
           </div>
           <p className="mt-3 text-xs text-mute">Restoring adds records from the file and keeps what you already have.</p>
         </Section>
+
+        {mode === "server" ? <UpdatesCard /> : null}
       </div>
 
       <div className={cx("fixed inset-x-0 bottom-14 z-30 border-t border-line bg-white/95 px-4 py-3 backdrop-blur transition lg:bottom-0 lg:left-64 sm:px-8", dirty ? "translate-y-0" : "pointer-events-none translate-y-full opacity-0")}>
@@ -241,6 +242,91 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* Settings → App updates: get the newest version from GitHub without a terminal. */
+function UpdatesCard() {
+  const { toast } = useApp();
+  const [st, setSt] = useState<UpdateStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState("");
+  const load = async (check = false) => {
+    setChecking(check);
+    try {
+      setSt(await backend().updateStatus(check));
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setChecking(false);
+    }
+  };
+  useEffect(() => {
+    load(true);
+  }, []);
+  const running = st?.job?.state === "running";
+  // While updating, follow progress; after a restart, reload into the new version.
+  useEffect(() => {
+    if (!running && !(st?.job?.state === "done" && st?.canRestart)) return;
+    const t = setInterval(async () => {
+      try {
+        const next = await backend().updateStatus(false);
+        setSt(next);
+        if (next.job?.state === "idle" && st?.job?.state === "done") window.location.reload();
+      } catch {
+        /* restarting — try again */
+      }
+    }, 2000);
+    return () => clearInterval(t);
+  }, [running, st?.job?.state]);
+  const start = async () => {
+    try {
+      await backend().runUpdate();
+      toast("Updating… keep this page open.");
+      load(false);
+    } catch (e) {
+      toast((e as Error).message, "error");
+    }
+  };
+  const when = (d?: string) => (d ? new Date(d).toLocaleString() : "");
+  return (
+    <Section icon={<RefreshCw className="h-4 w-4" />} title="App updates" description="Get the newest version of this app from GitHub. Your documents and settings are kept.">
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {!st ? <p className="text-sm text-mute">Checking…</p> : !st.enabled ? (
+        <p className="text-sm text-mute">{st.reason}</p>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <div className="rounded-2xl bg-panel p-3">
+              <p className="text-xs text-mute">This version</p>
+              <p className="font-semibold text-ink">{st.current?.message}</p>
+              <p className="text-xs text-mute">{st.current?.hash} · {when(st.current?.date)}</p>
+            </div>
+            <div className="rounded-2xl bg-panel p-3">
+              <p className="text-xs text-mute">On GitHub ({st.branch})</p>
+              <p className="font-semibold text-ink">{st.behind ? `${st.behind} new update${st.behind > 1 ? "s" : ""}` : "You have the latest version"}</p>
+              <p className="text-xs text-mute">{st.latest?.hash} · {when(st.latest?.date)}</p>
+            </div>
+          </div>
+          {st.changes?.length ? (
+            <ul className="space-y-1 rounded-2xl border border-line p-3 text-sm">
+              {st.changes.map((c) => <li key={c.hash} className="text-ink"><span className="text-xs text-mute">{c.hash}</span> {c.message}</li>)}
+            </ul>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="primary" icon={<Download className="h-4 w-4" />} onClick={start} loading={running} disabled={running || !st.behind}>
+              {running ? "Updating…" : "Update now"}
+            </Button>
+            <Button variant="ghost" icon={<RefreshCw className="h-4 w-4" />} onClick={() => load(true)} loading={checking} disabled={running}>Check for updates</Button>
+          </div>
+          {st.job && st.job.state !== "idle" ? (
+            <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded-2xl bg-ink p-3 text-xs leading-relaxed text-white/90">{st.job.log || "Starting…"}</pre>
+          ) : null}
+          {st.job?.state === "done" && !st.canRestart ? <p className="text-xs text-mute">Restart the app on the server to finish.</p> : null}
+        </div>
+      )}
+    </Section>
   );
 }
 

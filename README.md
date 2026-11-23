@@ -41,6 +41,10 @@ Two layouts, chosen in **Settings → Document style**:
 
 **Text size & bold**: inside each quotation, invoice or letter, open the "Text size & bold" card at the top of the editor (or press **Text size** in the top bar). Set the size (pt) and weight (Light, Regular, Semi-bold, Bold) of the company name, title, body text, customer name, labels, section headings, table header, table rows, totals, grand total and footer, and watch the preview. "Use for all documents" makes the current sizes the default.
 
+**Word-style formatting**: in item descriptions, group headings, the description of work, work details, notes, custom sections, closing lines and the note beside the totals, select any words and use the toolbar that appears above the box: **Bold**, *Italic*, Underline, size (8–24 pt), colour (8 quick colours or any colour), or clear formatting. Ctrl+B / Ctrl+I / Ctrl+U work too. The PDF prints exactly what you see. Formatting is stored inside the text as `<r b i u c="#C00000" s="12">words</r>`; plain text is unchanged.
+
+**Word download**: the **Word** button (next to Download PDF, also under More) saves the document as a `.docx` with the same layout — letterhead, customer, date and number, title, full-grid items table with totals rows, amount in words, notes, acceptance, signature and footer — as normal Word text and tables you can edit. Bold, italic, colours and sizes carry over. Word uses Calibri (Arial if you chose Helvetica) so it looks right on any PC.
+
 **Boxed**, a classic business form:
 
 - Company details top-left (with your logo if uploaded); a large title and a boxed number/date grid top-right.
@@ -67,9 +71,85 @@ Copy the `data` folder to back up everything. Documents saved by the previous ve
 | `PORT` | Port to listen on (default 3001) |
 | `ACCESS_PIN` | Require a PIN to open the app, e.g. `ACCESS_PIN=2468 npm start` |
 | `STORAGE=json` | Use the JSON file instead of SQLite |
+| `BASE_PATH` | Serve from a sub-folder, e.g. `BASE_PATH=/quotation` for `synnex-technology.com/quotation/` |
+| `DATA_DIR` | Folder for the database (default `./data`) |
+| `ALLOW_WEB_UPDATE=1` | Turn on Settings → App updates without a PIN (it is on automatically when `ACCESS_PIN` is set and the app was installed with git) |
 | `CORS_ORIGIN`, `VITE_API_URL` | Only if the app and the server are on different domains |
 
 On Windows PowerShell: `$env:ACCESS_PIN="2468"; npm start`
+
+## Put it on your website (synnex-technology.com/quotation)
+
+The app needs Node.js 20 or newer on the server (22.5+ uses SQLite; older
+versions use the JSON file automatically). **Always set `ACCESS_PIN` online**,
+or anyone who finds the page can read your quotations.
+
+### cPanel hosting with "Setup Node.js App"
+1. On your computer run `npm run build`.
+2. Zip everything **except** `node_modules` and `data`, upload it to a new
+   folder outside `public_html`, e.g. `~/quotation-app`, and extract it.
+3. cPanel → **Setup Node.js App** → Create application:
+   Node.js version 20+ · Application root `quotation-app` ·
+   Application URL `synnex-technology.com/quotation` ·
+   Application startup file `server.mjs`.
+4. Add environment variables `BASE_PATH=/quotation` and `ACCESS_PIN=your PIN`.
+5. Press **Run NPM Install**, then **Restart**. Open
+   `https://synnex-technology.com/quotation/`.
+6. To move your existing data: upload your `data` folder into `quotation-app`
+   (or use Settings → Data → Download backup / Restore).
+
+### VPS (Ubuntu, nginx)
+```
+git clone https://github.com/cheerysaaru/synnex-technology.git /opt/quotation
+cd /opt/quotation && npm ci && npm run build
+sudo npm i -g pm2
+BASE_PATH=/quotation ACCESS_PIN=1234 PORT=3001 pm2 start server.mjs --name quotation && pm2 save
+```
+nginx, inside the `server { … }` block for synnex-technology.com:
+```
+location /quotation/ { proxy_pass http://127.0.0.1:3001; proxy_set_header Host $host; client_max_body_size 20m; }
+```
+
+### CyberPanel (OpenLiteSpeed)
+1. Open a terminal (CyberPanel → **Terminal**, or SSH as root) and install Node 22:
+   `curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs git`
+   (AlmaLinux/Rocky: `curl -fsSL https://rpm.nodesource.com/setup_22.x | bash - && dnf install -y nodejs git`)
+2. Get the app, build it and keep it running:
+   ```
+   cd /home/synnex-technology.com
+   git clone https://github.com/cheerysaaru/synnex-technology.git quotation-app
+   cd quotation-app && npm ci && npm run build
+   npm i -g pm2
+   BASE_PATH=/quotation ACCESS_PIN=1234 PORT=3001 pm2 start server.mjs --name quotation
+   pm2 save && pm2 startup
+   ```
+3. CyberPanel → Websites → List Websites → synnex-technology.com → **Manage** →
+   **vHost Conf**, add at the end and save:
+   ```
+   extprocessor quotationapp {
+     type                    proxy
+     address                 127.0.0.1:3001
+     maxConns                100
+     initTimeout             60
+     retryTimeout            0
+     respBuffer              0
+   }
+   context /quotation/ {
+     type                    proxy
+     handler                 quotationapp
+     addDefaultCharset       off
+   }
+   ```
+4. Same page → **Rewrite Rules**, add `RewriteRule ^quotation$ /quotation/ [R=301,L]`, save.
+5. Restart OpenLiteSpeed: `systemctl restart lsws`. Open `https://synnex-technology.com/quotation/`.
+6. Updating later: open the app → **Settings → App updates → Update now**. It downloads the
+   newest version from GitHub, rebuilds and restarts by itself (needs `ACCESS_PIN`, which you set
+   in step 2, and pm2). Or in the terminal:
+   `cd /home/synnex-technology.com/quotation-app && git pull && npm ci && npm run build && pm2 restart quotation`.
+
+### Static only (no server)
+Upload the contents of `dist/` to `public_html/quotation/`. It works, but
+each browser keeps its own data (no shared database, no backup on the server).
 
 ## API
 

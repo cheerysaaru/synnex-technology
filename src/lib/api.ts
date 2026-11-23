@@ -3,6 +3,7 @@
  * reachable — e.g. the static GitHub Pages build — it falls back to a
  * browser-only store with the same behaviour, so the app always works.
  */
+import { plainText } from "./rich";
 import defaults from "../../shared/defaults.json";
 import type { CatalogItem, Customer, DocData, DocRecord, DocSummary, DocType, Settings, Stats } from "../types";
 import { addDays, computeTotals, todayIso } from "./calc";
@@ -23,6 +24,19 @@ export type Mode = "server" | "local";
 export interface SettingsPayload {
   settings: Settings;
   counters: Record<string, number>;
+}
+
+export type Commit = { hash: string; date: string; message: string };
+export interface UpdateStatus {
+  enabled: boolean;
+  reason?: string;
+  branch?: string;
+  current?: Commit;
+  latest?: Commit;
+  behind?: number;
+  changes?: Commit[];
+  canRestart?: boolean;
+  job?: { state: "idle" | "running" | "done" | "error"; log: string; error: string; startedAt: string | null; finishedAt: string | null };
 }
 
 export interface Backend {
@@ -47,11 +61,15 @@ export interface Backend {
   backup(): Promise<unknown>;
   restore(data: unknown): Promise<{ restored: number }>;
   importLegacy(data: { quotations: unknown[]; invoices: unknown[] }): Promise<{ imported: number }>;
+  updateStatus(check?: boolean): Promise<UpdateStatus>;
+  runUpdate(): Promise<{ started: boolean }>;
 }
 
 /* ------------------------------------------------------------------ server */
 const TOKEN_KEY = "synnex_token";
-const BASE = ((import.meta.env.VITE_API_URL as string | undefined) || "").replace(/\/+$/, "");
+/* The API lives next to the app: at /api, or /quotation/api when the app is
+   opened from synnex-technology.com/quotation/. VITE_API_URL overrides it. */
+const BASE = ((import.meta.env.VITE_API_URL as string | undefined) || (typeof location !== "undefined" ? location.pathname.replace(/\/[^/]*$/, "") : "")).replace(/\/+$/, "");
 
 async function http<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -102,6 +120,8 @@ const serverBackend: Backend = {
   backup: () => http("GET", "/backup"),
   restore: (data) => http("POST", "/restore", data),
   importLegacy: (data) => http("POST", "/import", data),
+  updateStatus: (check) => http("GET", `/update${check ? "?check=1" : ""}`),
+  runUpdate: () => http("POST", "/update", {}),
 };
 
 export async function login(pin: string): Promise<void> {
@@ -173,7 +193,7 @@ function localBackend(): Backend {
       number: data.number || "",
       status: s,
       customer_name: data.customer?.name || "",
-      subject: data.subject || "",
+      subject: plainText(data.subject),
       issue_date: data.issueDate || "",
       total: totals.total,
       balance: totals.balance,
@@ -341,6 +361,12 @@ function localBackend(): Backend {
       } as LocalState;
       commit();
       return { restored: (b.documents?.length || 0) + (b.customers?.length || 0) + (b.catalog?.length || 0) };
+    },
+    async updateStatus() {
+      return { enabled: false, reason: "This copy runs without the server (browser only), so it updates when the website is updated." };
+    },
+    async runUpdate() {
+      throw new ApiError("Web updates need the server version of the app.", 400);
     },
     async importLegacy(data) {
       let n = 0;

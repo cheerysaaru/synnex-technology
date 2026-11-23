@@ -15,7 +15,8 @@ export type TextRole =
   | "totals"
   | "grandTotal"
   | "footer";
-export type TextStyle = { size: number; weight: Weight; color?: string };
+export type TextCase = "upper" | "lower" | "title";
+export type TextStyle = { size: number; weight: Weight; color?: string; case?: TextCase };
 export type TextOverrides = Partial<Record<TextRole, TextStyle | null>>;
 
 export const TEXT_ROLES: { role: TextRole; label: string; hint: string }[] = [
@@ -90,6 +91,7 @@ export function applyOverrides(base: Record<TextRole, TextStyle>, overrides: Tex
         size: Number.isFinite(Number(o.size)) ? clampSize(Number(o.size)) : base[role].size,
         weight: (["light", "regular", "semibold", "bold"] as Weight[]).includes(o.weight) ? o.weight : base[role].weight,
         color: isHex(o.color) ? o.color : base[role].color,
+        case: o.case === "upper" || o.case === "lower" || o.case === "title" ? o.case : base[role].case,
       };
     }
   }
@@ -108,4 +110,20 @@ export function withColors(base: Record<TextRole, TextStyle>, primary: string): 
   const out = { ...base };
   for (const { role } of TEXT_ROLES) out[role] = { ...base[role], color: base[role].color || defaultColor(role, primary) };
   return out;
+}
+
+export const CASES: [TextCase | "", string, string][] = [
+  ["", "Aa", "As typed"],
+  ["upper", "ABC", "ALL CAPITALS"],
+  ["lower", "abc", "all small letters"],
+  ["title", "Abc", "Mixed (Title Case)"],
+];
+
+/* Change the letter case of plain text. "title" capitalises each word. */
+export function applyCase(text: string, c: TextCase | "sentence" | undefined): string {
+  if (!c || !text) return text;
+  if (c === "upper") return text.toUpperCase();
+  if (c === "lower") return text.toLowerCase();
+  if (c === "sentence") return text.toLowerCase().replace(/(^\s*|[.!?]\s+)(\p{L})/gu, (_m, a, b) => a + b.toUpperCase());
+  return text.toLowerCase().replace(/(^|[\s(\-/"'])(\p{L})/gu, (_m, a, b) => a + b.toUpperCase());
 }
