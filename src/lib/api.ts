@@ -26,6 +26,19 @@ export interface SettingsPayload {
   counters: Record<string, number>;
 }
 
+export type Commit = { hash: string; date: string; message: string };
+export interface UpdateStatus {
+  enabled: boolean;
+  reason?: string;
+  branch?: string;
+  current?: Commit;
+  latest?: Commit;
+  behind?: number;
+  changes?: Commit[];
+  canRestart?: boolean;
+  job?: { state: "idle" | "running" | "done" | "error"; log: string; error: string; startedAt: string | null; finishedAt: string | null };
+}
+
 export interface Backend {
   mode: Mode;
   settings(): Promise<SettingsPayload>;
@@ -48,6 +61,8 @@ export interface Backend {
   backup(): Promise<unknown>;
   restore(data: unknown): Promise<{ restored: number }>;
   importLegacy(data: { quotations: unknown[]; invoices: unknown[] }): Promise<{ imported: number }>;
+  updateStatus(check?: boolean): Promise<UpdateStatus>;
+  runUpdate(): Promise<{ started: boolean }>;
 }
 
 /* ------------------------------------------------------------------ server */
@@ -105,6 +120,8 @@ const serverBackend: Backend = {
   backup: () => http("GET", "/backup"),
   restore: (data) => http("POST", "/restore", data),
   importLegacy: (data) => http("POST", "/import", data),
+  updateStatus: (check) => http("GET", `/update${check ? "?check=1" : ""}`),
+  runUpdate: () => http("POST", "/update", {}),
 };
 
 export async function login(pin: string): Promise<void> {
@@ -344,6 +361,12 @@ function localBackend(): Backend {
       } as LocalState;
       commit();
       return { restored: (b.documents?.length || 0) + (b.customers?.length || 0) + (b.catalog?.length || 0) };
+    },
+    async updateStatus() {
+      return { enabled: false, reason: "This copy runs without the server (browser only), so it updates when the website is updated." };
+    },
+    async runUpdate() {
+      throw new ApiError("Web updates need the server version of the app.", 400);
     },
     async importLegacy(data) {
       let n = 0;

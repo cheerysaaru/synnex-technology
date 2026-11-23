@@ -73,6 +73,7 @@ Copy the `data` folder to back up everything. Documents saved by the previous ve
 | `STORAGE=json` | Use the JSON file instead of SQLite |
 | `BASE_PATH` | Serve from a sub-folder, e.g. `BASE_PATH=/quotation` for `synnex-technology.com/quotation/` |
 | `DATA_DIR` | Folder for the database (default `./data`) |
+| `ALLOW_WEB_UPDATE=1` | Turn on Settings → App updates without a PIN (it is on automatically when `ACCESS_PIN` is set and the app was installed with git) |
 | `CORS_ORIGIN`, `VITE_API_URL` | Only if the app and the server are on different domains |
 
 On Windows PowerShell: `$env:ACCESS_PIN="2468"; npm start`
@@ -141,7 +142,10 @@ location /quotation/ { proxy_pass http://127.0.0.1:3001; proxy_set_header Host $
    ```
 4. Same page → **Rewrite Rules**, add `RewriteRule ^quotation$ /quotation/ [R=301,L]`, save.
 5. Restart OpenLiteSpeed: `systemctl restart lsws`. Open `https://synnex-technology.com/quotation/`.
-6. Updating later: `cd /home/synnex-technology.com/quotation-app && git pull && npm ci && npm run build && pm2 restart quotation`.
+6. Updating later: open the app → **Settings → App updates → Update now**. It downloads the
+   newest version from GitHub, rebuilds and restarts by itself (needs `ACCESS_PIN`, which you set
+   in step 2, and pm2). Or in the terminal:
+   `cd /home/synnex-technology.com/quotation-app && git pull && npm ci && npm run build && pm2 restart quotation`.
 
 ### Static only (no server)
 Upload the contents of `dist/` to `public_html/quotation/`. It works, but

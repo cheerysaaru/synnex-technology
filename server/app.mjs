@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { createUpdater } from './updater.mjs';
 import { openStore, newId } from './store.mjs';
 import { computeTotals } from './calc.mjs';
 import { legacyToDocument } from './legacy.mjs';
@@ -57,6 +58,7 @@ export async function createApp({ dataDir = process.env.DATA_DIR || path.join(RO
 
   /* ----------------------------------------------------------- settings */
   const getSettings = () => deepMerge(DEFAULTS, store.getSettings() || {});
+  const updater = createUpdater(ROOT, { accessPin });
 
   /* ----------------------------------------------------------- auth (optional PIN) */
   const secretFile = path.join(dataDir, '.secret');
@@ -288,6 +290,14 @@ export async function createApp({ dataDir = process.env.DATA_DIR || path.join(RO
     }
 
     switch (resource) {
+      case 'update':
+        // Settings → App updates. GET ?check=1 also asks GitHub for news.
+        if (method === 'GET') return updater.status({ fetch: url.searchParams.get('check') === '1' });
+        if (method === 'POST') {
+          await updater.run();
+          return { started: true };
+        }
+        break;
       case 'settings':
         if (method === 'GET') return { settings: getSettings(), counters: store.counters() };
         if (method === 'PUT') {
