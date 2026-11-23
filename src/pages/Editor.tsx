@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowDown, ArrowLeft, ArrowRightLeft, ArrowUp, BookmarkPlus, Check, ChevronDown, Columns3, Copy, Eye, EyeOff, FileDown,
+  ArrowDown, ArrowLeft, ArrowRightLeft, ArrowUp, BookmarkPlus, Check, ChevronDown, Columns3, Copy, Eye, EyeOff, FileDown, FileText,
   Heading, ListPlus, Loader2, Monitor, PenLine, Plus, Printer, Redo2, RotateCcw, Trash2, Type, Undo2, UserPlus,
 } from "lucide-react";
 import { Button, ConfirmDelete, Field, IconButton, Input, Modal, NumberInput, Select, Spinner, Toggle, cx } from "../components/ui";
@@ -300,9 +300,13 @@ export default function Editor({ id, newType }: { id?: string; newType?: DocType
         <Button size="sm" variant="primary" icon={<FileDown className="h-4 w-4" />} loading={busy === "pdf"} onClick={() => run("pdf", () => downloadPdf(doc, settings))}>
           Download PDF
         </Button>
+        <Button size="sm" variant="secondary" icon={<FileText className="h-4 w-4" />} loading={busy === "word"} onClick={() => run("word", async () => (await import("../lib/docx")).downloadDocx(doc, settings))} title="Download as a Word document you can edit">
+          Word
+        </Button>
         <MoreMenu
           items={[
             { label: "Save now", icon: <Check className="h-4 w-4" />, onClick: () => persist() },
+            { label: "Download Word (.docx)", icon: <FileText className="h-4 w-4" />, onClick: () => run("word", async () => (await import("../lib/docx")).downloadDocx(doc, settings)) },
             {
               label: "Duplicate",
               icon: <Copy className="h-4 w-4" />,

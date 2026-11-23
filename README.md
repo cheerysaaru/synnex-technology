@@ -43,6 +43,8 @@ Two layouts, chosen in **Settings → Document style**:
 
 **Word-style formatting**: in item descriptions, group headings, the description of work, work details, notes, custom sections, closing lines and the note beside the totals, select any words and use the toolbar that appears above the box: **Bold**, *Italic*, Underline, size (8–24 pt), colour (8 quick colours or any colour), or clear formatting. Ctrl+B / Ctrl+I / Ctrl+U work too. The PDF prints exactly what you see. Formatting is stored inside the text as `<r b i u c="#C00000" s="12">words</r>`; plain text is unchanged.
 
+**Word download**: the **Word** button (next to Download PDF, also under More) saves the document as a `.docx` with the same layout — letterhead, customer, date and number, title, full-grid items table with totals rows, amount in words, notes, acceptance, signature and footer — as normal Word text and tables you can edit. Bold, italic, colours and sizes carry over. Word uses Calibri (Arial if you chose Helvetica) so it looks right on any PC.
+
 **Boxed**, a classic business form:
 
 - Company details top-left (with your logo if uploaded); a large title and a boxed number/date grid top-right.
